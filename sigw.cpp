@@ -25,10 +25,10 @@
 static void RestoreSigmask(void *param) {
     pthread_sigmask(SIG_SETMASK, (sigset_t *)param, NULL);
 }
+
 int main( int argc, char *argv[] ) {
     sigset_t nset, oset;
     struct timespec ts = {0};
-    siginfo_t info;
     FILE *f;
     int res = 0, signo = 0, r = 0;
     char path[1024] = {0}, msg[1024] = {0};
@@ -46,7 +46,8 @@ int main( int argc, char *argv[] ) {
 ///////////////////////////////////////////////////////////
     ts.tv_sec = 0, ts.tv_nsec = 1000000 * 300;
     for(;;) {
-        memset(&info, 0, sizeof(siginfo_t));
+        siginfo_t info = {0};
+
         signo = sigtimedwait(&nset, &info, &ts);
         if (-1 == signo && errno == EAGAIN)
                 continue;
