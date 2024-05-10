@@ -21,9 +21,8 @@
 #include <assert.h>
 #include <regex.h>
 
-///////////////////////////////////////////////////////////
-// for I in $(seq 1 1000); do sigq $I; done; sigq QUIT
-
+////////////////////////////////////////////////////////////
+//
 static char *stripCrLf(char *line) {
     int len = 0;
 
@@ -62,24 +61,42 @@ static int pidof(const char *name, pid_t *process) {
     regfree(&Regx), pclose(f), f = 0;
     return 0;
 }
+
 int main(int argc, char *argv[]) {
     union sigval sigVal = {0};
     pid_t pid = -1;
-    char msg[1024] = {0};
+    char msg[1024 * 256] = {0};
     int r = 0;
     char path[1024] = {0};
-    FILE *f;
+    FILE *f, *stream = stdin;
+    char *p;
+    int l;
 
-    if (2 != argc)
-        printf("Usage: sigq 'HELLO'\n"), exit(1);
-    if (0 != pidof("sigw", &pid))
-        printf("(%s %d) sigw not running\n", __FILE__, __LINE__), exit(2);
+    if (3 != argc && 2 != argc)
+        printf("Usage: echo HELLO | ./sigq sigw\n"), exit(1);
+    if (0 != pidof(argv[1], &pid)) {
+        exit(2);
+        //printf("(%s %d) sigw not running\n", __FILE__, __LINE__), exit(2);
+    }
 
     while (0 == r)
         srand(time(NULL)), r = rand();
     sprintf(path, "/tmp/msg-%08X.txt", r);
     f = fopen(path, "w"), assert(0 != f);
-    strcpy(msg, argv[1]), fputs(msg, f);
+
+
+    if (3 == argc)
+	stream = fopen (argv[2], "rb"), assert(0 != stream);
+    memset((p = msg), 0, sizeof(msg));
+    while (1) {
+        l = fread(p, sizeof(char), 128, stream);
+        if (0 == l) break;
+        p += l;
+    }
+    if (3 == argc)
+    	fclose (stream), stream = 0;
+
+    fwrite(msg, sizeof(char), (int)(p - msg), f);
     fclose(f), f = 0;
 
     memset(&sigVal, 0, sizeof(union sigval));

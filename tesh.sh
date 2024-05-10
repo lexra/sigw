@@ -3,10 +3,11 @@
 killall sigw sigq || true
 
 ./sigw &
-sleep 2
+sleep 1 
 
 for I in $(seq 1 1000); do 
-	./sigq $I
+	echo -n "Hello ${I} " | ./sigq sigw
 done
 
+sleep 1 
 ./sigq QUIT;

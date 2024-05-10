@@ -1,3 +1,5 @@
+#CXX=arm-buildroot-linux-uclibcgnueabihf-g++
+
 IDIR = .
 CFLAGS = -I$(IDIR)
 
