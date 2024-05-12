@@ -123,11 +123,6 @@ int main( int argc, char *argv[] ) {
             break;
         }
 
-		//if(SIGALRM == signo) {
-		//	printf("(%s %d) SIGALRM\n", __FILE__, __LINE__);
-		//	continue;
-		//}
-
         if(SIGUSR1 != signo) {
             printf("(%s %d) UNTRAP SIGNAL=%d\n", __FILE__, __LINE__, signo);
             break;
@@ -146,16 +141,12 @@ int main( int argc, char *argv[] ) {
             continue;
 		}
 
-#if 1
 		memset(p = msg, 0, sizeof(msg));
 		while (1) {
 			l = fread(p, sizeof(char), 128, f);
 			if (0 == l) break;
 			p += l;
 		}
-#else
-		fgets(msg, sizeof(msg), f);
-#endif
 
         fclose(f), f = 0;
         unlink(path);
@@ -176,7 +167,6 @@ int main( int argc, char *argv[] ) {
 		send_event_msg(MSG_QUIT, 0, 0, 0);
 		pthread_join(tEvent, NULL), tEvent = 0;
 	}
-
 
     pthread_cleanup_pop(1);
 	return res;

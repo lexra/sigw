@@ -28,8 +28,14 @@
 static int listen_sd = -1;
 static int accept_sd[CONCURRENT_CLIENT_NUMBER];
 
-static int onTcpRecv(int id, int len, char *msg) {
-	int res;
+static int onRecv(int fd, int length, char *buffer) {
+	int res = 0;
+
+	//res = write(connfd, buffer, length);
+	return res;
+}
+
+static int onEvent(int id, int len, char *msg) {
 	int connfd;
 	int length;
 	char buffer[MAX_BUFFER_MUM] = {0};
@@ -38,8 +44,7 @@ static int onTcpRecv(int id, int len, char *msg) {
 	length = len - sizeof(int);
 	memcpy(buffer, (void *)(msg + sizeof(int)), length);
 
-	//res = write(connfd, buffer, length);
-	return res;
+	return onRecv(connfd, length, buffer);
 }
 
 int get_connection_list(int list[]) {
@@ -165,7 +170,7 @@ NEXT_ISSET:
 					accept_sd[i] = -1;
 					continue;
 				}
-				send_event_msg(MSG_TCP_RCV, len + sizeof(int), buffer, onTcpRecv);
+				send_event_msg(MSG_TCP_RCV, len + sizeof(int), buffer, onEvent);
 			}
 		}
 	}
@@ -175,6 +180,8 @@ NEXT_ISSET:
 			close(accept_sd[i]), accept_sd[i]= -1;
 	}
 	close(listen_sd), listen_sd = -1;
+
+	printf("(%s %d) tcpsvc_thread() return\n", __FILE__, __LINE__);
 	return 0;
 }
 

@@ -75,7 +75,7 @@ void *event_thread(void *param) {
 	}
 
 BAITOUT:
-	//printf("(%s %d) event_thread() return\n", __FILE__, __LINE__);
+	printf("(%s %d) event_thread() return\n", __FILE__, __LINE__);
 	return 0;
 }
 

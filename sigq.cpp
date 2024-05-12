@@ -26,10 +26,10 @@
 static char *stripCrLf(char *line) {
     int len = 0;
 
-    if(line == 0)        return 0;
+    if(line == 0)		return 0;
     len = strlen(line);
-    if(len > 1000)        return line;
-    if(len <= 0)        return line;
+    if(len > 1000)		return line;
+    if(len <= 0)		return line;
     if (line[len - 1] == '\n' || line[len - 1] == '\r')
         line[len - 1] = 0;
     len = strlen(line);
