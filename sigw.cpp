@@ -147,9 +147,8 @@ int main( int argc, char *argv[] ) {
 			if (0 == l) break;
 			p += l;
 		}
-
-        fclose(f), f = 0;
-        unlink(path);
+		fclose(f), f = 0;
+		unlink(path);
 
 		if (msg[0] == 'Q' && msg[1] == 'U' && msg[2] == 'I' && msg[3] == 'T')
 			break;
@@ -168,7 +167,7 @@ int main( int argc, char *argv[] ) {
 		pthread_join(tEvent, NULL), tEvent = 0;
 	}
 
-    pthread_cleanup_pop(1);
+	pthread_cleanup_pop(1);
 	return res;
 }
  
