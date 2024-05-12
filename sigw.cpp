@@ -96,49 +96,49 @@ int main( int argc, char *argv[] ) {
 	res = pthread_create(&tTcp, NULL, tcpsvc_thread, (void *)&nset), assert(0 == res);
 
 ///////////////////////////////////////////////////////////
-    ts.tv_sec = 0, ts.tv_nsec = 1000000 * 300;
-    for(;;) {
-        siginfo_t info = {0};
+	ts.tv_sec = 0, ts.tv_nsec = 1000000 * 300;
+	for(;;) {
+		siginfo_t info = {0};
 		char *p = 0;
 		int l = 0;
 
-        signo = sigtimedwait(&nset, &info, &ts);
+		signo = sigtimedwait(&nset, &info, &ts);
 
-        if (-1 == signo && errno == EAGAIN)
-                continue;
-        if (-1 == signo && errno == EINTR)
-            continue;
+		if (-1 == signo && errno == EAGAIN)
+			continue;
+		if (-1 == signo && errno == EINTR)
+			continue;
 
-        if (-1 == signo) {
-            printf("(%s %d) SIGTIMEDWAIT() fail, errno=%d, EXIT() \n", __FILE__, __LINE__, errno);
-            res = errno;
-            break;
-        }
-        if(SIGINT == signo) {
-            printf("(%s %d) SIGINT\n", __FILE__, __LINE__);
-            break;
-        }
+		if (-1 == signo) {
+			printf("(%s %d) SIGTIMEDWAIT() fail, errno=%d, EXIT() \n", __FILE__, __LINE__, errno);
+			res = errno;
+			break;
+		}
+		if(SIGINT == signo) {
+			printf("(%s %d) SIGINT\n", __FILE__, __LINE__);
+			break;
+		}
 		if(SIGTERM == signo) {
-            printf("(%s %d) SIGTERM\n", __FILE__, __LINE__);
-            break;
-        }
+			printf("(%s %d) SIGTERM\n", __FILE__, __LINE__);
+			break;
+		}
 
-        if(SIGUSR1 != signo) {
-            printf("(%s %d) UNTRAP SIGNAL=%d\n", __FILE__, __LINE__, signo);
-            break;
-        }
+		if(SIGUSR1 != signo) {
+			printf("(%s %d) UNTRAP SIGNAL=%d\n", __FILE__, __LINE__, signo);
+			break;
+		}
 
-        r = info.si_value.sival_int;
-        if (0 == r) {
-            printf("(%s %d) SIGUSR1=%d\n", __FILE__, __LINE__, info.si_value.sival_int);
-            continue;
-        }
-        r = info.si_value.sival_int;
-        sprintf(path, "/tmp/msg-%08X.txt", r);
-        f = fopen(path, "rb");
-        if (0 == f) {
-            printf("(%s %d) `%s` NOT FOUND\n", __FILE__, __LINE__, path);
-            continue;
+		r = info.si_value.sival_int;
+		if (0 == r) {
+			printf("(%s %d) SIGUSR1=%d\n", __FILE__, __LINE__, info.si_value.sival_int);
+			continue;
+		}
+		r = info.si_value.sival_int;
+		sprintf(path, "/tmp/msg-%08X.txt", r);
+		f = fopen(path, "rb");
+		if (0 == f) {
+			printf("(%s %d) `%s` NOT FOUND\n", __FILE__, __LINE__, path);
+			continue;
 		}
 
 		memset(p = msg, 0, sizeof(msg));
@@ -156,7 +156,7 @@ int main( int argc, char *argv[] ) {
 			break;
 		//printf("(%s %d) %s\n", __FILE__, __LINE__, msg);
 		onSIGUSR1 (r, l, msg);
-    }
+	}
 
 	if (tTcp) {
 		tell_tcpsvc_quit();
