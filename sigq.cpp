@@ -65,12 +65,13 @@ static int pidof(const char *name, pid_t *process) {
 int main(int argc, char *argv[]) {
     union sigval sigVal = {0};
     pid_t pid = -1;
-    char msg[1024 * 256] = {0};
+    char msg[1024] = {0};
     int r = 0;
     char path[1024] = {0};
     FILE *f, *stream = stdin;
     char *p;
     int l;
+	int i, res;
 
     if (3 != argc && 2 != argc)
         printf("Usage: echo HELLO | ./sigq sigw\n"), exit(1);
@@ -82,12 +83,11 @@ int main(int argc, char *argv[]) {
     while (0 == r)
         srand(time(NULL)), r = rand();
     sprintf(path, "/tmp/msg-%08X.txt", r);
-    f = fopen(path, "w"), assert(0 != f);
-
+    f = fopen(path, "wb"), assert(0 != f);
 
     if (3 == argc)
-	stream = fopen (argv[2], "rb"), assert(0 != stream);
-    memset((p = msg), 0, sizeof(msg));
+		stream = fopen(argv[2], "rb"), assert(0 != stream);
+	memset((p = msg), 0, sizeof(msg));
     while (1) {
         l = fread(p, sizeof(char), 128, stream);
         if (0 == l) break;
@@ -101,11 +101,26 @@ int main(int argc, char *argv[]) {
 
     memset(&sigVal, 0, sizeof(union sigval));
     sigVal.sival_int = r;
-    if(sigqueue(pid, SIGUSR1, sigVal) == -1) {
-        printf("(%s %d) sigqueue() error\n", __FILE__, __LINE__);
-        unlink(path);
-        exit(2);
+
+#if 1
+	for(i = 0; i < 2; i++) {
+		res = sigqueue(pid, SIGUSR1, sigVal);
+		if (-1 != res)
+			break;
+	}
+	if (-1 == res) {
+		printf("(%s %d) sigqueue() error\n", __FILE__, __LINE__);
+		unlink(path);
+		exit(2);
+	}
+#else
+	if(sigqueue(pid, SIGUSR1, sigVal) == -1) {
+		printf("(%s %d) sigqueue() error\n", __FILE__, __LINE__);
+		unlink(path);
+		exit(2);
     }
+#endif
+
     //printf("(%s %d) sigqueue(). \n", __FILE__, __LINE__);
     return 0;
 }

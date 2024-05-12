@@ -5,9 +5,9 @@ CFLAGS=-I$(IDIR) -Wno-implicit-function-declaration
 
 LIBS=-lm -lpthread
 
-all: sigw sigq serial_keypad
+all: sigw sigq serial_keypad 
 
-sigw: sigw.o
+sigw: sigw.o event.o tcpsvc.o
 	$(CXX) -o $@ $^ $(CFLAGS) $(LIBS)
 
 sigq: sigq.o

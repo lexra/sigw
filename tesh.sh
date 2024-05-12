@@ -1,13 +1,14 @@
-#!/bin/bash -e
+#!/bin/bash
 
-killall sigw sigq || true
+killall -9 sigw || true
 
 ./sigw &
-sleep 1 
+sleep 1
 
-for I in $(seq 1 1000); do 
+for I in $(seq 1 1024); do 
 	echo -n "Hello ${I} " | ./sigq sigw
 done
+echo -n VERIFY | ./sigq sigw
 
 sleep 1 
-./sigq QUIT;
+echo -n QUIT | ./sigq sigw
