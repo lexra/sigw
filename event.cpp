@@ -88,14 +88,16 @@ int send_event_msg(int id, int len, char *msg, fonEvent callback) {
 	struct pool_t *e;
 	int length;
 
-	length = sizeof(struct pool_t) + len + 16;
+	length = sizeof(struct pool_t) + len + 32;
 	e = (struct pool_t *)malloc(length);
 	memset((void *)e, 0, length);
 	e->id = id;
 	e->len = len;
 	e->callback = callback;
+	e->msg = (char *)e;
+	e->msg += sizeof(struct pool_t);
 	if (len > 0)
-		memcpy(e->msg, &msg, len);
+		memcpy(e->msg, msg, len);
 
 	pthread_mutex_lock(&mPoolEmpty); pthread_cleanup_push(CleanupLock, (void *)&mPoolEmpty);
 	list_add_tail(&e->list, &pl.list);

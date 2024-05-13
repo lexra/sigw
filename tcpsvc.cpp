@@ -31,7 +31,7 @@ static int accept_sd[CONCURRENT_CLIENT_NUMBER];
 static int onRecv(int fd, int length, char *buffer) {
 	int res = 0;
 
-	//res = write(connfd, buffer, length);
+	//res = write(fd, buffer, length);
 	return res;
 }
 
@@ -124,20 +124,16 @@ void *tcpsvc_thread(void *param) {
 
 			clilen = sizeof(cliaddr);
 			connfd = accept(listen_sd, (struct sockaddr *)&cliaddr, (socklen_t *)&clilen), assert(connfd >= 0);
+
+#if 1
+			assert(connfd >= 0);
+#else
 			if (connfd < 0) {
-				if (EAGAIN == errno)
-					goto NEXT_ISSET;
-				if (EWOULDBLOCK == errno)
-					goto NEXT_ISSET;
-				if (ETIMEDOUT == errno)
-					goto NEXT_ISSET;
-				if (ECONNABORTED == errno)
-					goto NEXT_ISSET;
-				if (EPROTO == errno)
-					goto NEXT_ISSET;
-				if (ECONNRESET == errno)
-					goto NEXT_ISSET;
+				printf("(%s %d) connfd < 0\n", __FILE__, __LINE__);
+				goto NEXT_ISSET;
 			}
+#endif // 1
+
 			printf("(%s %d) accept(%d)\n", __FILE__, __LINE__, connfd);
 			for (i = 0; i < CONCURRENT_CLIENT_NUMBER; i++) {
 				if (-1 != accept_sd[i])
@@ -147,23 +143,35 @@ void *tcpsvc_thread(void *param) {
 			}
 			if (-1 == index) {
 				close(connfd);
-				continue;
+				goto NEXT_ISSET;
 			}
 			v = fcntl(connfd, F_GETFL, 0);
 			fcntl(connfd, F_SETFL, v | O_NONBLOCK);
 			accept_sd[index] = connfd;
+			//goto NEXT_ISSET;
+			continue;
 		}
 
 NEXT_ISSET:
 		for (i = 0; i < CONCURRENT_CLIENT_NUMBER; i++) {
 			if (-1 == accept_sd[i])
 				continue;
+
 			connfd = accept_sd[i];
 			if (FD_ISSET(connfd, &rset)) {
 				char buffer[MAX_BUFFER_MUM] = {0};
 
 				memcpy((void *)buffer, (void *)&connfd, sizeof(int));
+
 				len = read(connfd, buffer + sizeof(int), MAX_BUFFER_MUM - sizeof(int));
+#if 0
+				if (len < 0) {
+					if (EWOULDBLOCK == errno)
+						continue;
+					if (EAGAIN == errno)
+						continue;
+				}
+#endif // 0
 				assert(len >= 0);
 				if (0 == len) {
 					close(connfd);
