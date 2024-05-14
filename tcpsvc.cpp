@@ -25,6 +25,7 @@
 #include "event.h"
 #include "tcpsvc.h"
 
+static int thread_running = 0;
 static int listen_sd = -1;
 static int accept_sd[CONCURRENT_CLIENT_NUMBER];
 
@@ -59,10 +60,8 @@ int get_connection_list(int list[]) {
 	return count;
 }
 
-static int running = 0;
-
 void tell_tcpsvc_quit(void) {
-	running = 0;
+	thread_running = 0;
 	return;
 }
 
@@ -89,8 +88,8 @@ void *tcpsvc_thread(void *param) {
 	v = fcntl(listen_sd, F_GETFL, 0);
 	fcntl(listen_sd, F_SETFL, v | O_NONBLOCK);
 
-	running = 1;
-	while (running) {
+	thread_running = 1;
+	while (thread_running) {
 		int maxfd;
 		int clilen, connfd = -1;
 		struct sockaddr_in cliaddr;

@@ -24,6 +24,7 @@
 
 #include "event.h"
 #include "tcpsvc.h"
+#include "uart.h"
 
 ///////////////////////////////////////////////////////////
 static char verify[] = 
@@ -82,6 +83,9 @@ int main( int argc, char *argv[] ) {
     char msg[1024] = {0};
     pid_t pid = -1;
 
+	int ttyfd = -1;
+	pthread_t tUart = 0;
+
 	pthread_t tEvent = 0;
 	pthread_t tTcp = 0;
 
@@ -94,6 +98,8 @@ int main( int argc, char *argv[] ) {
 	init_event_thread();
 	res = pthread_create(&tEvent, NULL, event_thread, (void *)&nset), assert(0 == res);
 	res = pthread_create(&tTcp, NULL, tcpsvc_thread, (void *)&nset), assert(0 == res);
+	if (-1 != (ttyfd = open(TTY_SERIAL, O_RDWR | O_NOCTTY | O_NDELAY)))
+		res = pthread_create(&tUart, NULL, uart_thread, (void *)&ttyfd), assert(0 == res);
 
 ///////////////////////////////////////////////////////////
 	ts.tv_sec = 0, ts.tv_nsec = 1000000 * 300;
@@ -158,6 +164,11 @@ int main( int argc, char *argv[] ) {
 		onSIGUSR1 (r, l, msg);
 	}
 
+	if (tUart) {
+		tell_uart_thread_quit();
+		pthread_join(tUart, NULL), tUart = 0;
+		close(ttyfd);
+	}
 	if (tTcp) {
 		tell_tcpsvc_quit();
 		pthread_join(tTcp, NULL), tTcp = 0;

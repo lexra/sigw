@@ -6,6 +6,7 @@
 
 #define MSG_QUIT			90000
 #define MSG_TCP_RCV			90001
+#define MSG_UART_RCV		90002
 
 #define MAX_BUFFER_MUM		(4096 + sizeof(int))
 
