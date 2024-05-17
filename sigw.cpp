@@ -25,6 +25,7 @@
 #include "event.h"
 #include "tcpsvc.h"
 #include "uart.h"
+#include "timer.h"
 
 ///////////////////////////////////////////////////////////
 static char verify[] = 
@@ -42,13 +43,17 @@ static char nfc[] =
 	"  \"note\": \"\" \n"
 	"}}\n";
 
+static UINT interval = 10000;
+
+///////////////////////////////////////////////////////////
+
 static void onSIGUSR1 (int id, int len, char *msg) {
 	int res;
 	int i;
 	int n = 0;
 	int connfd[CONCURRENT_CLIENT_NUMBER];
 
-	if (msg[0] == 'N' && msg[1] == 'F' && msg[2] == 'C') {
+	/*if (msg[0] == 'N' && msg[1] == 'F' && msg[2] == 'C') {
 		printf("(%s %d) NFC\n", __FILE__, __LINE__);
 
 		n = get_connection_list(connfd);
@@ -58,7 +63,6 @@ static void onSIGUSR1 (int id, int len, char *msg) {
 		}
 		return;
 	}
-
 	if (msg[0] == 'V' && msg[1] == 'E' && msg[2] == 'R' && msg[3] == 'I' && msg[4] == 'F' && msg[5] == 'Y') {
 		printf("(%s %d) VERIFY\n", __FILE__, __LINE__);
 
@@ -69,9 +73,30 @@ static void onSIGUSR1 (int id, int len, char *msg) {
 		}
 		return;
 	}
+	*/
 	printf("(%s %d) %s\n", __FILE__, __LINE__, msg);
-
 	return;
+}
+
+static void onPeriod(UINT nId) {
+	int timeout = 6;
+	int standby = 0;
+
+	//printf("(%s %d) onPeriod()\n", __FILE__, __LINE__);
+	uartKidVerify(standby, timeout);
+
+	setTimer(TIMER_ID_PERIOD, interval, onPeriod);
+	return;
+}
+
+static int setPollTimer(int period) {
+	int res;
+	struct itimerval tick = {0};
+
+	tick.it_value.tv_sec = period / 1000000, tick.it_value.tv_usec = period % 1000000;
+	tick.it_interval.tv_sec = period / 1000000, tick.it_interval.tv_usec = period % 1000000;
+	res = setitimer(ITIMER_REAL, &tick, NULL), assert(0 == res);
+	return res;
 }
 
 int main( int argc, char *argv[] ) {
@@ -90,7 +115,7 @@ int main( int argc, char *argv[] ) {
 	pthread_t tTcp = 0;
 
 ///////////////////////////////////////////////////////////
-	sigemptyset(&nset), sigaddset(&nset, SIGUSR1), sigaddset(&nset, SIGINT), sigaddset(&nset, SIGTERM);
+	sigemptyset(&nset), sigaddset(&nset, SIGUSR1), sigaddset(&nset, SIGINT), sigaddset(&nset, SIGTERM), sigaddset(&nset, SIGALRM);
 	pthread_sigmask(SIG_BLOCK, &nset, &oset);
 	pthread_cleanup_push(RestoreSigmask, (void *)&oset);
 
@@ -99,9 +124,12 @@ int main( int argc, char *argv[] ) {
 	res = pthread_create(&tEvent, NULL, event_thread, (void *)&nset), assert(0 == res);
 	res = pthread_create(&tTcp, NULL, tcpsvc_thread, (void *)&nset), assert(0 == res);
 	if (-1 != (ttyfd = open(TTY_SERIAL, O_RDWR | O_NOCTTY | O_NDELAY)))
-		res = pthread_create(&tUart, NULL, uart_thread, (void *)&ttyfd), assert(0 == res);
+		res = pthread_create(&tUart, NULL, uartThread, (void *)&ttyfd), assert(0 == res);
 
 ///////////////////////////////////////////////////////////
+	setPollTimer(16);
+	setTimer(TIMER_ID_PERIOD, interval, onPeriod);
+
 	ts.tv_sec = 0, ts.tv_nsec = 1000000 * 300;
 	for(;;) {
 		siginfo_t info = {0};
@@ -127,6 +155,10 @@ int main( int argc, char *argv[] ) {
 		if(SIGTERM == signo) {
 			printf("(%s %d) SIGTERM\n", __FILE__, __LINE__);
 			break;
+		}
+		if(SIGALRM == signo) {
+			PollTimer();
+			continue;
 		}
 
 		if(SIGUSR1 != signo) {

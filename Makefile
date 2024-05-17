@@ -7,7 +7,7 @@ LIBS=-lm -lpthread
 
 all: sigw sigq serial_keypad 
 
-sigw: sigw.o event.o tcpsvc.o uart.o
+sigw: sigw.o event.o tcpsvc.o uart.o timer.o
 	$(CXX) -o $@ $^ $(CFLAGS) $(LIBS)
 
 sigq: sigq.o
