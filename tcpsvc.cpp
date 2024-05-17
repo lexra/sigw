@@ -48,7 +48,7 @@ static int onEvent(int id, int len, char *msg) {
 	return onRecv(connfd, length, buffer);
 }
 
-int get_connection_list(int list[]) {
+int tcpsGetConnectionList(int list[]) {
 	int i = 0;
 	int count = 0;
 
@@ -60,12 +60,12 @@ int get_connection_list(int list[]) {
 	return count;
 }
 
-void tell_tcpsvc_quit(void) {
+void tellTcpsExit(void) {
 	thread_running = 0;
 	return;
 }
 
-void *tcpsvc_thread(void *param) {
+void *tcpsThread(void *param) {
 	int v = 1;
 	int res;
 	struct sockaddr_in servaddr ={0};
@@ -177,7 +177,7 @@ NEXT_ISSET:
 					accept_sd[i] = -1;
 					continue;
 				}
-				send_event_msg(MSG_TCP_RCV, len + sizeof(int), buffer, onEvent);
+				sendEvent(MSG_TCP_RCV, len + sizeof(int), buffer, onEvent);
 			}
 		}
 	}

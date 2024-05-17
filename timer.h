@@ -50,7 +50,6 @@ typedef struct Timer_t
 
 UINT setTimer(UINT nId, UINT nElapse, TIMER_FUNC cb);
 BOOL killTimer(UINT nId);
-
-void PollTimer(void);
+void pollTimer(void);
 
 #endif //__TIMER__

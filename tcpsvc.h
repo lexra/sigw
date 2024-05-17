@@ -7,10 +7,8 @@
 #define SELECT_EXPIRY_SECONDS				1
 #define CONCURRENT_CLIENT_NUMBER			12
 
-int get_connection_list(int list[]);
-void tell_tcpsvc_quit(void);
-
-void *tcpsvc_thread(void *param);
-
+int tcpsGetConnectionList(int list[]);
+void tellTcpsExit(void);
+void *tcpsThread(void *param);
 
 #endif // 

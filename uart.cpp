@@ -282,7 +282,7 @@ static int onUartMsg(int id, int len, char *msg) {
 	return i;
 }
 
-void tell_uart_thread_quit(void) {
+void tellUartThreadExit(void) {
 	thread_running = 0;
 	return;
 }
@@ -334,7 +334,7 @@ void *uartThread(void *param) {
             if (0 >= res)
 				break;
             for (i = 0; i < res; i++) {
-				send_event_msg(MSG_UART_RCV, res + sizeof(int), line, onUartMsg);
+				sendEvent(MSG_UART_RCV, res + sizeof(int), line, onUartMsg);
             }
         }
 	}

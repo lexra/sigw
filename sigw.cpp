@@ -56,7 +56,7 @@ static void onSIGUSR1 (int id, int len, char *msg) {
 	/*if (msg[0] == 'N' && msg[1] == 'F' && msg[2] == 'C') {
 		printf("(%s %d) NFC\n", __FILE__, __LINE__);
 
-		n = get_connection_list(connfd);
+		n = tcpsGetConnectionList(connfd);
 		for (i = 0; i < n; i++) {
 			printf("(%s %d) connfd[%d]=%d\n", __FILE__, __LINE__, i, connfd[i]);
 			res = write(connfd[i], nfc, sizeof(nfc));
@@ -120,9 +120,9 @@ int main( int argc, char *argv[] ) {
 	pthread_cleanup_push(RestoreSigmask, (void *)&oset);
 
 ///////////////////////////////////////////////////////////
-	init_event_thread();
-	res = pthread_create(&tEvent, NULL, event_thread, (void *)&nset), assert(0 == res);
-	res = pthread_create(&tTcp, NULL, tcpsvc_thread, (void *)&nset), assert(0 == res);
+	res = initEventThread();
+	res = pthread_create(&tEvent, NULL, eventThread, (void *)&nset), assert(0 == res);
+	res = pthread_create(&tTcp, NULL, tcpsThread, (void *)&nset), assert(0 == res);
 	if (-1 != (ttyfd = open(TTY_SERIAL, O_RDWR | O_NOCTTY | O_NDELAY)))
 		res = pthread_create(&tUart, NULL, uartThread, (void *)&ttyfd), assert(0 == res);
 
@@ -157,7 +157,7 @@ int main( int argc, char *argv[] ) {
 			break;
 		}
 		if(SIGALRM == signo) {
-			PollTimer();
+			pollTimer();
 			continue;
 		}
 
@@ -197,16 +197,16 @@ int main( int argc, char *argv[] ) {
 	}
 
 	if (tUart) {
-		tell_uart_thread_quit();
+		tellUartThreadExit();
 		pthread_join(tUart, NULL), tUart = 0;
 		close(ttyfd);
 	}
 	if (tTcp) {
-		tell_tcpsvc_quit();
+		tellTcpsExit();
 		pthread_join(tTcp, NULL), tTcp = 0;
 	}
 	if (tEvent) {
-		send_event_msg(MSG_QUIT, 0, 0, 0);
+		sendEvent(MSG_QUIT, 0, 0, 0);
 		pthread_join(tEvent, NULL), tEvent = 0;
 	}
 

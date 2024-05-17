@@ -34,7 +34,7 @@ static int onEvent(int id, int len, char *msg) {
 	return 0;
 }
 
-void *event_thread(void *param) {
+void *eventThread(void *param) {
     struct pool_t *e;
     struct list_head *pos, *q;
     int n = 0, i = 0;
@@ -79,12 +79,12 @@ BAITOUT:
 	return 0;
 }
 
-int init_event_thread(void) {
+int initEventThread(void) {
 	INIT_LIST_HEAD(&pl.list);
 	return pthread_cond_init(&cPoolEmpty, NULL);;
 }
 
-int send_event_msg(int id, int len, char *msg, fonEvent callback) {
+int sendEvent(int id, int len, char *msg, fonEvent callback) {
 	struct pool_t *e;
 	int length;
 

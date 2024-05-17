@@ -46,7 +46,7 @@ static void onTimer(UINT nId) {
 	return;
 }
 
-void PollTimer(void) {
+void pollTimer(void) {
 	int i;
 	struct timespec request = {0};
 	unsigned int now;

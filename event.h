@@ -31,9 +31,9 @@ struct msg_t {
 void RestoreSigmask(void *param);
 void CleanupLock(void *param);
 
-int init_event_thread(void);
-int send_event_msg(int id, int len, char *msg, fonEvent callback = 0);
-void *event_thread(void *param);
+int initEventThread(void);
+int sendEvent(int id, int len, char *msg, fonEvent callback = 0);
+void *eventThread(void *param);
 
 
 #endif //__EVENT__

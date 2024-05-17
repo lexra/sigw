@@ -89,7 +89,7 @@
 #endif
 
 
-void tell_uart_thread_quit(void);
+void tellUartThreadExit(void);
 
 int getUartDescriptor(void);
 void *uartThread(void *param);
