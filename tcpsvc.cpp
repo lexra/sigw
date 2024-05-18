@@ -147,8 +147,8 @@ void *tcpsThread(void *param) {
 			v = fcntl(connfd, F_GETFL, 0);
 			fcntl(connfd, F_SETFL, v | O_NONBLOCK);
 			accept_sd[index] = connfd;
-			//goto NEXT_ISSET;
-			continue;
+			goto NEXT_ISSET;
+			//continue;
 		}
 
 NEXT_ISSET:
