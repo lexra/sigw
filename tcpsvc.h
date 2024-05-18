@@ -8,6 +8,8 @@
 #define CONCURRENT_CLIENT_NUMBER			12
 
 int tcpsGetConnectionList(int list[]);
+ssize_t ipcSendto(int n, int sockfd[], const void *buf, size_t len);
+
 void tellTcpsExit(void);
 void *tcpsThread(void *param);
 

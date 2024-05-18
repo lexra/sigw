@@ -31,9 +31,11 @@
 #include "event.h"
 #include "uart.h"
 #include "timer.h"
+#include "tcpsvc.h"
 
 static int ttyfd = -1;
 static int thread_running = 0;
+static unsigned short face_state;
 
 ///////////////////////////////////////////////////////////
 //
@@ -149,49 +151,49 @@ static void processNote(int len, unsigned char *data) {
 		break;
 
 	case NID_FACE_STATE: {
-		unsigned short state = BUILD_UINT16(data[4], data[5]);
+		face_state = BUILD_UINT16(data[4], data[5]);
 
-		if (FACE_STATE_NOFACE == state) {
+		if (FACE_STATE_NOFACE == face_state) {
 			printf("FACE_STATE_NOFACE\n");
 			break;
 		}
-		if (FACE_STATE_TOOUP == state) {
+		if (FACE_STATE_TOOUP == face_state) {
 			printf("FACE_STATE_TOOUP\n");
 			break;
 		}
-		if (FACE_STATE_TOODOWN == state) {
+		if (FACE_STATE_TOODOWN == face_state) {
 			printf("FACE_STATE_TOODOWN\n");
 			break;
 		}
-		if (FACE_STATE_TOOLEFT == state) {
+		if (FACE_STATE_TOOLEFT == face_state) {
 			printf("FACE_STATE_TOOLEFT\n");
 			break;
 		}
-		if (FACE_STATE_TOORIGHT == state) {
+		if (FACE_STATE_TOORIGHT == face_state) {
 			printf("FACE_STATE_TOORIGHT\n");
 			break;
 		}
-		if (FACE_STATE_TOOFAR == state) {
+		if (FACE_STATE_TOOFAR == face_state) {
 			printf("FACE_STATE_TOOFAR\n");
 			break;
 		}
-		if (FACE_STATE_TOOCLOSE == state) {
+		if (FACE_STATE_TOOCLOSE == face_state) {
 			printf("FACE_STATE_TOOCLOSE\n");
 			break;
 		}
-		if (FACE_STATE_FACE_OCCLUSION == state) {
+		if (FACE_STATE_FACE_OCCLUSION == face_state) {
 			printf("FACE_STATE_FACE_OCCLUSION\n");
 			break;
 		}
-		if (FACE_STATE_EYE_CLOSE_STATUS_OPEN_EYE == state) {
+		if (FACE_STATE_EYE_CLOSE_STATUS_OPEN_EYE == face_state) {
 			printf("FACE_STATE_EYE_CLOSE_STATUS_OPEN_EYE\n");
 			break;
 		}
-		if (FACE_STATE_EYE_CLOSE_STATUS == state) {
+		if (FACE_STATE_EYE_CLOSE_STATUS == face_state) {
 			printf("FACE_STATE_EYE_CLOSE_STATUS\n");
 			break;
 		}
-		if (FACE_STATE_EYE_CLOSE_UNKNOW_STATUS == state) {
+		if (FACE_STATE_EYE_CLOSE_UNKNOW_STATUS == face_state) {
 			printf("FACE_STATE_EYE_CLOSE_UNKNOW_STATUS\n");
 			break;
 		}
@@ -223,8 +225,10 @@ void sendKidTimer(UINT nId) {
 }
 
 static void processReply(int len, unsigned char *data) {
+	int n = 0;
+	int list[CONCURRENT_CLIENT_NUMBER] = {0};
+
 	unsigned char rid = data[0];
-	// 1, 2
 	unsigned char kid = data[3];
 	unsigned char result = data[4];
 	int length = len - 3;
@@ -233,6 +237,8 @@ static void processReply(int len, unsigned char *data) {
 	char user_name[64] = {0};
 	unsigned char admin = 0, unlockStatus = 0;
 	unsigned long long int lv_vals = 0;
+	char yaml[4096] = {0};
+	char tmp[512] = {0};
 
 	switch (kid) {
 	case KID_DEVICE_INFO:
@@ -262,54 +268,137 @@ static void processReply(int len, unsigned char *data) {
 		break;
 
 	case KID_VERIFY:
-		if (MR_SUCCESS == result) {
-			user_id = BUILD_UINT16(data[6], data[5]);
-			for (i = 0; i < 32; i++)
-				user_name[i] = (char)data[7 + i];
-			admin = data[39], unlockStatus = data[40];
-
-			if (ST_FACE_MODULE_STATUS_UNLOCK_OK == unlockStatus)
-				printf("ST_FACE_MODULE_STATUS_UNLOCK_OK, user_id=%04x, user_name=%s, admin=%02x\n", user_id, user_name, admin);
-			else if (ST_FACE_MODULE_STATUS_UNLOCK_WITH_EYES_CLOSE == unlockStatus)
-				printf("ST_FACE_MODULE_STATUS_UNLOCK_WITH_EYES_CLOSE, user_id=%04x, user_name=%s, admin=%02x\n", user_id, user_name, admin);
-			else
-				assert(0);
-
-			if (len > 41) {
-				memcpy((void *)&lv_vals, (void *)&data[41], sizeof(lv_vals));
-				printf("lv_vals=%llu\n", lv_vals);
-			}
-
-///////////////////////////////////////////////////////////
-//
+		if (MR_ABORTED == result) {
+			memset(yaml, 0, sizeof(yaml));
+			strcat(yaml, "---\n");
+			strcat(yaml, "verify\n");
+			sprintf(tmp, "  id: -1\n"), strcat(yaml, tmp);
+			sprintf(tmp, "  name: undef\n"), strcat(yaml, tmp);
+			sprintf(tmp, "  result: MR_ABORTED\n"), strcat(yaml, tmp);
+			sprintf(tmp, "\n\n"), strcat(yaml, tmp);
+			n = tcpsGetConnectionList(list);
+			if (n > 0)
+				ipcSendto(n, list, yaml, strlen(yaml));
 			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
-			//setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
 			break;
 		}
-
-		if (MR_ABORTED == result)
-			printf("KID_VERIFY(%02x)=MR_ABORTED: ", length);
-		else if (MR_FAILED_INVALID_PARAM == result)
-			printf("KID_VERIFY(%02x)=MR_FAILED_INVALID_PARAM: ", length);
-		else if (MR_FAILED_TIME_OUT == result)
-			printf("KID_VERIFY(%02x)=MR_FAILED_TIME_OUT: ", length);
-		else if (MR_FAILED_UNKNOWN_REASON == result)
-			printf("KID_VERIFY(%02x)=MR_FAILED_UNKNOWN_REASON: ", length);
-		else if (MR_FAILED_UNKNOWN_USER == result)
-			printf("KID_VERIFY(%02x)=MR_FAILED_UNKNOWN_USER: ", length);
-		else if (MR_FAILED_LIVENESS_CHECK == result)
-			printf("KID_VERIFY(%02x)=MR_FAILED_LIVENESS_CHECK: ", length);
-		else if (MR_FAILED_DEV_OPEN_FAIL == result)
-			printf("KID_VERIFY(%02x)=MR_FAILED_DEV_OPEN_FAIL: ", length);
-		else
-			assert(0);
-			//printf("KID_VERIFY(%02x)=%02x: ", length, result);
-		for (i = 0; i < length - 1; i++) {
-			printf("%02x ", data[5 + i]);
+		if (MR_FAILED_INVALID_PARAM == result) {
+			memset(yaml, 0, sizeof(yaml));
+			strcat(yaml, "---\n");
+			strcat(yaml, "verify\n");
+			sprintf(tmp, "  id: -1\n"), strcat(yaml, tmp);
+			sprintf(tmp, "  name: undef\n"), strcat(yaml, tmp);
+			sprintf(tmp, "  result: MR_FAILED_INVALID_PARAM\n"), strcat(yaml, tmp);
+			sprintf(tmp, "\n\n"), strcat(yaml, tmp);
+			n = tcpsGetConnectionList(list);
+			if (n > 0)
+				ipcSendto(n, list, yaml, strlen(yaml));
+			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
+			break;
 		}
-		printf("\n");
+		if (MR_FAILED_TIME_OUT == result) {
+			printf("(%s %d) MR_FAILED_TIME_OUT\n", __FILE__, __LINE__);
+			memset(yaml, 0, sizeof(yaml));
+			strcat(yaml, "---\n");
+			strcat(yaml, "verify\n");
+			sprintf(tmp, "  id: -1\n"), strcat(yaml, tmp);
+			sprintf(tmp, "  name: undef\n"), strcat(yaml, tmp);
+			sprintf(tmp, "  result: MR_FAILED_TIME_OUT\n"), strcat(yaml, tmp);
+			sprintf(tmp, "\n\n"), strcat(yaml, tmp);
+			n = tcpsGetConnectionList(list);
+			if (n > 0)
+				ipcSendto(n, list, yaml, strlen(yaml));
+			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
+			break;
+		}
+		if (MR_FAILED_UNKNOWN_REASON == result) {
+			printf("(%s %d) MR_FAILED_UNKNOWN_REASON\n", __FILE__, __LINE__);
+			memset(yaml, 0, sizeof(yaml));
+			strcat(yaml, "---\n");
+			strcat(yaml, "verify\n");
+			sprintf(tmp, "  id: -1\n"), strcat(yaml, tmp);
+			sprintf(tmp, "  name: undef\n"), strcat(yaml, tmp);
+			sprintf(tmp, "  result: MR_FAILED_UNKNOWN_REASON\n"), strcat(yaml, tmp);
+			sprintf(tmp, "\n\n"), strcat(yaml, tmp);
+			n = tcpsGetConnectionList(list);
+			if (n > 0)
+				ipcSendto(n, list, yaml, strlen(yaml));
+			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
+			break;
+		}
+		if (MR_FAILED_UNKNOWN_USER == result) {
+			printf("(%s %d) MR_FAILED_UNKNOWN_USER\n", __FILE__, __LINE__);
+			memset(yaml, 0, sizeof(yaml));
+			strcat(yaml, "---\n");
+			strcat(yaml, "verify\n");
+			sprintf(tmp, "  id: -1\n"), strcat(yaml, tmp);
+			sprintf(tmp, "  name: undef\n"), strcat(yaml, tmp);
+			sprintf(tmp, "  result: MR_FAILED_UNKNOWN_USER\n"), strcat(yaml, tmp);
+			sprintf(tmp, "\n\n"), strcat(yaml, tmp);
+			n = tcpsGetConnectionList(list);
+			if (n > 0)
+				ipcSendto(n, list, yaml, strlen(yaml));
+			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
+			break;
+		}
+		if (MR_FAILED_LIVENESS_CHECK == result) {
+			printf("(%s %d) MR_FAILED_LIVENESS_CHECK\n", __FILE__, __LINE__);
+			memset(yaml, 0, sizeof(yaml));
+			strcat(yaml, "---\n");
+			strcat(yaml, "verify\n");
+			sprintf(tmp, "  id: -1\n"), strcat(yaml, tmp);
+			sprintf(tmp, "  name: undef\n"), strcat(yaml, tmp);
+			sprintf(tmp, "  result: MR_FAILED_LIVENESS_CHECK\n"), strcat(yaml, tmp);
+			sprintf(tmp, "\n\n"), strcat(yaml, tmp);
+			n = tcpsGetConnectionList(list);
+			if (n > 0)
+				ipcSendto(n, list, yaml, strlen(yaml));
+			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
+			break;
+		}
+		if (MR_FAILED_DEV_OPEN_FAIL == result) {
+			printf("(%s %d) MR_FAILED_DEV_OPEN_FAIL\n", __FILE__, __LINE__);
+			memset(yaml, 0, sizeof(yaml));
+			strcat(yaml, "---\n");
+			strcat(yaml, "verify\n");
+			sprintf(tmp, "  id: -1\n"), strcat(yaml, tmp);
+			sprintf(tmp, "  name: undef\n"), strcat(yaml, tmp);
+			sprintf(tmp, "  result: MR_FAILED_DEV_OPEN_FAIL\n"), strcat(yaml, tmp);
+			sprintf(tmp, "\n\n"), strcat(yaml, tmp);
+			n = tcpsGetConnectionList(list);
+			if (n > 0)
+				ipcSendto(n, list, yaml, strlen(yaml));
+			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
+			break;
+		}
+		user_id = BUILD_UINT16(data[6], data[5]);
+		for (i = 0; i < 32; i++)
+			user_name[i] = (char)data[7 + i];
+		admin = data[39], unlockStatus = data[40];
+		if (ST_FACE_MODULE_STATUS_UNLOCK_OK == unlockStatus)
+			printf("ST_FACE_MODULE_STATUS_UNLOCK_OK, user_id=%04x, user_name=%s, admin=%02x\n", user_id, user_name, admin);
+		else //if (ST_FACE_MODULE_STATUS_UNLOCK_WITH_EYES_CLOSE == unlockStatus)
+			printf("ST_FACE_MODULE_STATUS_UNLOCK_WITH_EYES_CLOSE, user_id=%04x, user_name=%s, admin=%02x\n", user_id, user_name, admin);
+		if (len > 41) {
+			memcpy((void *)&lv_vals, (void *)&data[41], sizeof(lv_vals));
+			printf("lv_vals=%llu\n", lv_vals);
+		}
 ///////////////////////////////////////////////////////////
 //
+		memset(yaml, 0, sizeof(yaml));
+		strcat(yaml, "---\n");
+		strcat(yaml, "verify\n");
+		sprintf(tmp, "  id: %02x\n", user_id), strcat(yaml, tmp);
+		sprintf(tmp, "  name: %s\n", user_name), strcat(yaml, tmp);
+		sprintf(tmp, "  result: MR_SUCCESS\n"), strcat(yaml, tmp);
+		if (ST_FACE_MODULE_STATUS_UNLOCK_OK == unlockStatus)
+			sprintf(tmp, "  status: ST_FACE_MODULE_STATUS_UNLOCK_OK\n"), strcat(yaml, tmp);
+		else
+			sprintf(tmp, "  status: ST_FACE_MODULE_STATUS_UNLOCK_WITH_EYES_CLOSE\n"), strcat(yaml, tmp);
+		sprintf(tmp, "\n\n"), strcat(yaml, tmp);
+		n = tcpsGetConnectionList(list);
+		if (n > 0)
+			ipcSendto(n, list, yaml, strlen(yaml));
 		setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
 		//setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
 		break;
@@ -318,7 +407,6 @@ static void processReply(int len, unsigned char *data) {
 		printf("(%s %d) UNTRAP KID=%02x\n", __FILE__, __LINE__, kid);
 		break;
 	}
-	return;
 	return;
 }
 

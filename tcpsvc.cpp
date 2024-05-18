@@ -29,6 +29,12 @@ static int thread_running = 0;
 static int listen_sd = -1;
 static int accept_sd[CONCURRENT_CLIENT_NUMBER];
 
+static pthread_mutex_t mtxSt[CONCURRENT_CLIENT_NUMBER] = {
+	PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, 
+	PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, 
+	PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER 
+};
+
 static int onRecv(int fd, int length, char *buffer) {
 	int res = 0;
 
@@ -58,6 +64,23 @@ int tcpsGetConnectionList(int list[]) {
 		list[count++] = accept_sd[i];
 	}
 	return count;
+}
+
+ssize_t ipcSendto(int n, int sockfd[], const void *buf, size_t len) {
+	int res;
+	int l = 0, i = 0;
+
+	for (i = 0; i < n; i++) {
+		pthread_mutex_lock(&mtxSt[i]); pthread_cleanup_push(CleanupLock, (void *)&mtxSt[i]);
+
+		res = write(sockfd[i], buf, len);
+
+		pthread_cleanup_pop(1);
+
+		if (res > 0)
+			l += res;
+	}
+	return l;
 }
 
 void tellTcpsExit(void) {
