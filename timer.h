@@ -34,8 +34,11 @@
 #endif
 
 
-#define MAX_TIMERS			64
-#define TIMER_ID_PERIOD		0
+#define MAX_TIMERS					64
+#define TIMER_PERIOD				0
+#define TIMER_KID_POWER_ON			1
+#define TIMER_KID_VERIFY			2
+
 
 typedef void (*TIMER_FUNC)(UINT nId);
 

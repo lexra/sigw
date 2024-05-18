@@ -78,14 +78,20 @@ static void onSIGUSR1 (int id, int len, char *msg) {
 	return;
 }
 
+static void onTimer(UINT nId) {
+	//if (TIMER_ID_POWER_ON == nid)
+	//	uartKidPowerOn();
+	return;
+}
+
 static void onPeriod(UINT nId) {
-	int timeout = 6;
+	int timeout = 0x0a;
 	int standby = 0;
 
-	//printf("(%s %d) onPeriod()\n", __FILE__, __LINE__);
+	printf("(%s %d) onPeriod()\n", __FILE__, __LINE__);
 	uartKidVerify(standby, timeout);
 
-	setTimer(TIMER_ID_PERIOD, interval, onPeriod);
+	setTimer(TIMER_PERIOD, interval, onPeriod);
 	return;
 }
 
@@ -114,6 +120,11 @@ int main( int argc, char *argv[] ) {
 	pthread_t tEvent = 0;
 	pthread_t tTcp = 0;
 
+//printf("HI_UINT16(PACKET_HEADER)=%02x\n", HI_UINT16(PACKET_HEADER));
+
+//HI_UINT16(PACKET_HEADER)
+
+
 ///////////////////////////////////////////////////////////
 	sigemptyset(&nset), sigaddset(&nset, SIGUSR1), sigaddset(&nset, SIGINT), sigaddset(&nset, SIGTERM), sigaddset(&nset, SIGALRM);
 	pthread_sigmask(SIG_BLOCK, &nset, &oset);
@@ -123,12 +134,16 @@ int main( int argc, char *argv[] ) {
 	res = initEventThread();
 	res = pthread_create(&tEvent, NULL, eventThread, (void *)&nset), assert(0 == res);
 	res = pthread_create(&tTcp, NULL, tcpsThread, (void *)&nset), assert(0 == res);
-	if (-1 != (ttyfd = open(TTY_SERIAL, O_RDWR | O_NOCTTY | O_NDELAY)))
+	if (-1 != (ttyfd = open(TTY_SERIAL, O_RDWR | O_NOCTTY | O_NDELAY))) {
+		//printf("(%s %d) uartThread\n", __FILE__, __LINE__);
 		res = pthread_create(&tUart, NULL, uartThread, (void *)&ttyfd), assert(0 == res);
+	}
 
 ///////////////////////////////////////////////////////////
-	setPollTimer(16);
-	setTimer(TIMER_ID_PERIOD, interval, onPeriod);
+	setPollTimer(32);
+
+	//setTimer(TIMER_ID_PERIOD, 1000, onPeriod);
+	setTimer(TIMER_KID_POWER_ON, 1000, sendKidTimer);
 
 	ts.tv_sec = 0, ts.tv_nsec = 1000000 * 300;
 	for(;;) {

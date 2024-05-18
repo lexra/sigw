@@ -30,6 +30,7 @@
 
 #include "event.h"
 #include "uart.h"
+#include "timer.h"
 
 static int ttyfd = -1;
 static int thread_running = 0;
@@ -63,6 +64,8 @@ int makePacket(unsigned short header, unsigned char id, unsigned short length, u
 		}
 	}
 	sum = checkSum(3 + (int)length, &buffer[2]);
+//printf("(%s %d) sum=%02x\n", __FILE__, __LINE__, sum);
+
 	*p = sum;
 	p++;
 	return (p - buffer);
@@ -72,6 +75,7 @@ int uartKidVerify(int shutdown, int timeout) {
     unsigned char buffer[64] = {0};
 	unsigned char data[16] = {0};
 	int len;
+	int res;
 
 	if (-1 == ttyfd)
 		return 0;
@@ -80,173 +84,304 @@ int uartKidVerify(int shutdown, int timeout) {
 	data[1] = (timeout & 0xff);
 
 	len = makePacket(PACKET_HEADER, KID_VERIFY, 2, data, buffer);
-    return write(ttyfd, buffer, len);
+//printf("(%s %d) uartKidVerify=%02x\n", __FILE__, __LINE__, len);
+
+	res = write(ttyfd, buffer, len);
+	assert(res == len);
+	return 8;
 }
 
-static int processNote(int len, unsigned char *data) {
-	unsigned char nid;
-	unsigned short state;
+int uartKidPowerOn(void) {
+	int i;
+	unsigned char zero = 0;
+	int res;
 
-	nid = data[0];
+	if (-1 == ttyfd)
+		return 0;
+	for (i = 0; i < 1500; i++) {
+		res = write(ttyfd, &zero, 1);
+		assert(1 == res);
+	}
+
+	return 1500;
+}
+
+static void processNote(int len, unsigned char *data) {
+	unsigned char rid = data[0];
+	unsigned char nid = data[3];
+	int length = len - 3;
+	int i = 0;
+	unsigned short state = 0;
+
 	switch (nid) {
-	case NID_FACE_STATE:
-		state = BUILD_UINT16(data[1], data[2]);
-		printf("NID_FACE_STATE, nid=0x%02x, state=0x%04x\n", nid, state);
-		if (0 == state) {
-			break;
-		}
-		if (1 == state) {
-			break;
-		}
-		if (2 == state) {
-			break;
-		}
-		if (3 == state) {
-			break;
-		}
-		if (4 == state) {
-			break;
-		}
-		if (5 == state) {
-			break;
-		}
-		if (6 == state) {
-			break;
-		}
-		if (7 == state) {
-			break;
-		}
-		if (8 == state) {
-			break;
-		}
-		if (9 == state) {
-			break;
-		}
-		if (10 == state) {
-			break;
-		}
-		if (11 == state) {
-			printf("Direcion error. \n");
-			break;
-		}
-		break;
-
 	case NID_READY:
-		printf("NID_READY\n");
+		printf("(%s %d) NID_READY(%02x): ", __FILE__, __LINE__, length);
+
+		for (i = 0; i < length; i++) {
+			printf("%02x ", data[4 + i]);
+		}
+		printf("\n");
+
+///////////////////////////////////////////////////////////
+//
+		//setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
+		uartKidVerify(0, 0x02);
 		break;
 
 	case NID_UNKNOWN_ERROR:
-		printf("NID_UNKNOWN_ERROR\n");
+		printf("NID_UNKNOWN_ERROR(%02x): ", length);
+		for (i = 0; i < length; i++) {
+			printf("%02x ", data[4 + i]);
+		}
+		printf("\n");
 		break;
 
 	case NID_OTA_DONE:
 		printf("NID_OTA_DONE\n");
 		break;
 
-	default:
-		printf("NID_DEFAULT(%02x)\n", nid);
-                break;
+	case NID_MASS_DATA_DONE:
+		printf("NID_MASS_DATA_DONE(%02x): ", length);
+		for (i = 0; i < length; i++) {
+			printf("%02x ", data[4 + i]);
+		}
+		printf("\n");
+		break;
+
+	case NID_FACE_STATE: {
+		unsigned short state = BUILD_UINT16(data[4], data[5]);
+
+		if (FACE_STATE_NOFACE == state) {
+			printf("FACE_STATE_NOFACE\n");
+			break;
+		}
+		if (FACE_STATE_TOOUP == state) {
+			printf("FACE_STATE_TOOUP\n");
+			break;
+		}
+		if (FACE_STATE_TOODOWN == state) {
+			printf("FACE_STATE_TOODOWN\n");
+			break;
+		}
+		if (FACE_STATE_TOOLEFT == state) {
+			printf("FACE_STATE_TOOLEFT\n");
+			break;
+		}
+		if (FACE_STATE_TOORIGHT == state) {
+			printf("FACE_STATE_TOORIGHT\n");
+			break;
+		}
+		if (FACE_STATE_TOOFAR == state) {
+			printf("FACE_STATE_TOOFAR\n");
+			break;
+		}
+		if (FACE_STATE_TOOCLOSE == state) {
+			printf("FACE_STATE_TOOCLOSE\n");
+			break;
+		}
+		if (FACE_STATE_FACE_OCCLUSION == state) {
+			printf("FACE_STATE_FACE_OCCLUSION\n");
+			break;
+		}
+		if (FACE_STATE_EYE_CLOSE_STATUS_OPEN_EYE == state) {
+			printf("FACE_STATE_EYE_CLOSE_STATUS_OPEN_EYE\n");
+			break;
+		}
+		if (FACE_STATE_EYE_CLOSE_STATUS == state) {
+			printf("FACE_STATE_EYE_CLOSE_STATUS\n");
+			break;
+		}
+		if (FACE_STATE_EYE_CLOSE_UNKNOW_STATUS == state) {
+			printf("FACE_STATE_EYE_CLOSE_UNKNOW_STATUS\n");
+			break;
+		}
+		printf("FACE_STATE UNTRAP\n");
+		assert(0);
+		break;
 	}
-	return 0;
-}
-
-static void processReply(int len, unsigned char *data) {
-	unsigned char kid;
-	unsigned char result;
-	unsigned short user_id;
-	unsigned char face_direction;
-
-	kid = data[0];
-	result = data[1];
-	switch (kid) {
-	case KID_FACE_RESET:
-		/*user_id = BUILD_UINT16(data[3], data[2]);
-		face_direction = data[4];
-		printf("KID_ENROLL, result=%02x, face_direction=%02x\n", result, face_direction);
-		if (MR_SUCCESS == result) {
-			break;
-		}
-		if (MR_REJECTED == result) {
-			break;
-		}
-		if (MR_ABORTED == result) {
-			break;
-		}
-		if (MR_FAILED4_CAMERA == result) {
-			break;
-		}
-		if (MR_FAILED4_UNKNOWNREASON == result) {
-			break;
-		}
-		if (MR_FAILED4_INVALIDPARAM == result) {
-			break;
-		}
-		if (MR_FAILED4_TIMEOUT == result) {
-			break;
-		}*/
-		break;
-
-	case KID_GET_SAVED_IMAGE:
-		break;
-
-	case KID_VERIFY:
-		printf("KID_RESET\n");
-		break;
-
-	case KID_RESET:
-		printf("KID_RESET\n");
-		break;
 
 	default:
-		printf("KID_DEFAULT, kid=%02x, result=%d\n", kid, result);
+		printf("(%s %d) UNTRAP NID=%02x\n", __FILE__, __LINE__, nid);
 		break;
 	}
 
 	return;
 }
 
+void sendKidTimer(UINT nId) {
+	if (TIMER_KID_POWER_ON == nId) {
+		uartKidPowerOn();
+		return;
+	}
+	if (TIMER_KID_VERIFY == nId) {
+		uartKidVerify(0x00, 0x02);
+		//uartKidVerify(0x01, 0x02);
+		return;
+	}
+
+	return;
+}
+
+static void processReply(int len, unsigned char *data) {
+	unsigned char rid = data[0];
+	// 1, 2
+	unsigned char kid = data[3];
+	unsigned char result = data[4];
+	int length = len - 3;
+	int i = 0;
+	unsigned short user_id = 0;
+	char user_name[64] = {0};
+	unsigned char admin = 0, unlockStatus = 0;
+	unsigned long long int lv_vals = 0;
+
+	switch (kid) {
+	case KID_DEVICE_INFO:
+		if (MR_REJECTED == result) {
+			assert(2 == length);
+			printf("KID_DEVICE_INFO: MR_REJECTED=%02x\n", data[5]);
+
+///////////////////////////////////////////////////////////
+//
+			//setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
+			uartKidVerify(0, 0x02);
+			break;
+		}
+		printf("KID_DEVICE_INFO(%02x): ", length);
+		for (i = 0; i < length; i++) {
+			printf("%02x ", data[4 + i]);
+		}
+		printf("\n");
+		break;
+
+	case KID_POWERDOWN:
+		printf("KID_POWERDOWN(%02x): ", length);
+		for (i = 0; i < length; i++) {
+			printf("%02x ", data[4 + i]);
+		}
+		printf("\n");
+		break;
+
+	case KID_VERIFY:
+		if (MR_SUCCESS == result) {
+			user_id = BUILD_UINT16(data[6], data[5]);
+			for (i = 0; i < 32; i++)
+				user_name[i] = (char)data[7 + i];
+			admin = data[39], unlockStatus = data[40];
+
+			if (ST_FACE_MODULE_STATUS_UNLOCK_OK == unlockStatus)
+				printf("ST_FACE_MODULE_STATUS_UNLOCK_OK, user_id=%04x, user_name=%s, admin=%02x\n", user_id, user_name, admin);
+			else if (ST_FACE_MODULE_STATUS_UNLOCK_WITH_EYES_CLOSE == unlockStatus)
+				printf("ST_FACE_MODULE_STATUS_UNLOCK_WITH_EYES_CLOSE, user_id=%04x, user_name=%s, admin=%02x\n", user_id, user_name, admin);
+			else
+				assert(0);
+
+			if (len > 41) {
+				memcpy((void *)&lv_vals, (void *)&data[41], sizeof(lv_vals));
+				printf("lv_vals=%llu\n", lv_vals);
+			}
+
+///////////////////////////////////////////////////////////
+//
+			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
+			//setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
+			break;
+		}
+
+		if (MR_ABORTED == result)
+			printf("KID_VERIFY(%02x)=MR_ABORTED: ", length);
+		else if (MR_FAILED_INVALID_PARAM == result)
+			printf("KID_VERIFY(%02x)=MR_FAILED_INVALID_PARAM: ", length);
+		else if (MR_FAILED_TIME_OUT == result)
+			printf("KID_VERIFY(%02x)=MR_FAILED_TIME_OUT: ", length);
+		else if (MR_FAILED_UNKNOWN_REASON == result)
+			printf("KID_VERIFY(%02x)=MR_FAILED_UNKNOWN_REASON: ", length);
+		else if (MR_FAILED_UNKNOWN_USER == result)
+			printf("KID_VERIFY(%02x)=MR_FAILED_UNKNOWN_USER: ", length);
+		else if (MR_FAILED_LIVENESS_CHECK == result)
+			printf("KID_VERIFY(%02x)=MR_FAILED_LIVENESS_CHECK: ", length);
+		else if (MR_FAILED_DEV_OPEN_FAIL == result)
+			printf("KID_VERIFY(%02x)=MR_FAILED_DEV_OPEN_FAIL: ", length);
+		else
+			assert(0);
+			//printf("KID_VERIFY(%02x)=%02x: ", length, result);
+		for (i = 0; i < length - 1; i++) {
+			printf("%02x ", data[5 + i]);
+		}
+		printf("\n");
+///////////////////////////////////////////////////////////
+//
+		setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
+		//setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
+		break;
+
+	default:
+		printf("(%s %d) UNTRAP KID=%02x\n", __FILE__, __LINE__, kid);
+		break;
+	}
+	return;
+	return;
+}
+
+/*
+[TX] POWER ON: Send done and Wait for reply ( TO: 1000ms) !!!
+[RX] Note: Module Ready!!
+Process Time: 425 (ms)
+[Reply Data] POWER ON: 
+*/
+
 static int processPacket(int len, unsigned char *message) {
-	unsigned char mid;
+	unsigned char rid;
 	int size;
 
-	mid = message[0];
+	rid = message[0];
 	size = BUILD_UINT16(message[2], message[1]);
-	switch (mid) {
-	case 0x00:
-		printf("RID_REPLY\n");
-			processReply(size, &message[3]);
+
+	switch (rid) {
+	case RID_REPLY:
+		//printf("RID_REPLY\n");
+		processReply(size + 3, &message[0]);
 		break;
-	case 0x01:
-		printf("RID_NOTE\n");
-		processNote(size, &message[3]);
+
+	case RID_NOTE:
+		//printf("RID_NOTE\n");
+		processNote(size + 3, &message[0]);
 		break;
-	case 0x02:
+
+	case RID_IMAGE:
 		printf("RID_IMAGE\n");
 		break;
-	case 0x03:
+
+	case RID_ERROR:
 		printf("RID_ERROR\n");
 		break;
+
 	default:
-		printf("RID_DEFAULT\n");
+		printf("UNTRAPED RID\n");
 		break;
 	}
 	return 0;
 }
 
+// 9f dc 00 00 02 00 01 03
 static void onUartChar(int fd, unsigned char ch) {
-	static int size = 0;
-	int offset = 0;
-	unsigned char sum;
 	static unsigned char recv_packet[1024 * 8 + 6] = {0};
 	static unsigned char *p = recv_packet;
+	static int size = 0;
 
+	int offset = 0;
+	unsigned char sum;
+
+	*p = ch;
 	offset = p - recv_packet;
-	if (0 == offset && *p != 0xef) {
+
+	if (0 == offset && *p != 0x9f) {
 		p = recv_packet;
+		size = 0;
 		return;
 	}
-	if (1 == offset && *p != 0xaa) {
+	if (1 == offset && *p != 0xdc) {
 		p = recv_packet;
+		size = 0;
 		return;
 	}
 	if (4 == offset) {
@@ -260,26 +395,14 @@ static void onUartChar(int fd, unsigned char ch) {
 		p++;
 		return;
 	}
+
 	sum = checkSum(3 + size, &recv_packet[2]);
 	if (*p == sum) {
 		processPacket(3 + size, &recv_packet[2]);
 	}
 	p = recv_packet;
+	size = 0;
 	return;
-}
-
-static int onUartMsg(int id, int len, char *msg) {
-	int fd;
-	int length;
-	char buffer[1028] = {0};
-	int i;
-
-	memcpy((void *)&fd, (void *)msg, sizeof(int));
-	length = len - sizeof(int);
-	memcpy(buffer, (void *)(msg + sizeof(int)), length);
-	for (i = 0; i < length; i++)
-		onUartChar(fd, (unsigned char)buffer[i]);
-	return i;
 }
 
 void tellUartThreadExit(void) {
@@ -295,7 +418,7 @@ void *uartThread(void *param) {
 	struct termios term = {0}, save = {0};
     int i, res, v, maxfd = 0;
     fd_set rset;
-	char line[1028] = {0};
+	unsigned char line[1024 + 4] = {0};
 	struct timeval tv = {0};
 
 	assert(0 != param);
@@ -329,12 +452,9 @@ void *uartThread(void *param) {
 		if (0 == res)
 			continue;
         if (FD_ISSET(ttyfd, &rset)) {
-			memcpy((void *)line, (void *)&ttyfd, sizeof(int));
-            res = read(ttyfd, (void *)(line + sizeof(int)), sizeof(line) - sizeof(int));
-            if (0 >= res)
-				break;
+            res = read(ttyfd, (void *)line, sizeof(line));
             for (i = 0; i < res; i++) {
-				sendEvent(MSG_UART_RCV, res + sizeof(int), line, onUartMsg);
+				onUartChar(ttyfd, line[i]);
             }
         }
 	}

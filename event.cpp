@@ -57,7 +57,9 @@ void *eventThread(void *param) {
 			msgs[n].len = e->len;
 			msgs[n].callback = e->callback;
 			if (e->len > 0)
-				memcpy(&msgs[n].msg, e->msg, e->len); list_del(pos), free(e);
+				memcpy(&msgs[n].msg, e->msg, e->len);
+			list_del(pos);
+			free(e);
 			n++;
 		}
 		poolEmpty = 1;

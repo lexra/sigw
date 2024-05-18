@@ -1,6 +1,36 @@
 #ifndef __UART__
 #define __UART__
 
+
+#ifndef BOOL
+ #define BOOL int
+#endif
+
+#ifndef INT
+ #define INT int
+#endif
+
+#ifndef UINT
+ #define UINT unsigned int
+#endif
+
+#ifndef DWORD
+ #define DWORD unsigned long
+#endif
+
+#ifndef WPARAM
+ #define WPARAM unsigned int
+#endif
+
+#ifndef LPARAM
+ #define LPARAM unsigned int
+#endif
+
+#ifndef LRESULT
+ #define LRESULT unsigned int
+#endif
+
+
 #ifndef BUILD_UINT16
  #define BUILD_UINT16(loByte, hiByte) \
           ((unsigned short)(((loByte) & 0x00FF) + (((hiByte) & 0x00FF) << 8)))
@@ -61,7 +91,11 @@
 #define MR_SUCCESS_BUT_DEL_USER		9
 #define MR_FAILED4_MAXUSER			9 // exceed maximum user number 
 #define MR_FAILED4_FACEENROLLED		0x0a // this face has been enrolled 
+
+#define MR_FAILED_UNKNOWN_USER		0x10
 #define MR_FAILED_EXISTED_USER		0x11
+#define MR_FAILED_LIVENESS_CHECK	0x14
+
 #define MR_FAILED4_LIVENESSCHECK	0x0c // liveness check failed 
 #define MR_FAILED4_TIMEOUT			0x0d // exceed the time limit 
 #define MR_FAILED4_AUTHORIZATION	0x0e // authorization failed 
@@ -69,6 +103,8 @@
 #define MR_FAILED4_READ_FILE		0x13 // read file failed 
 #define MR_FAILED4_WRITE_FILE		0x14 // write file failed 
 #define MR_FAILED4_NO_ENCRYPT		0x15
+
+#define MR_FAILED_DEV_OPEN_FAIL		0x40
 
 #define RID_REPLY					0x00
 #define RID_NOTE					0x01
@@ -80,6 +116,21 @@
 #define NID_UNKNOWN_ERROR			0x02
 #define NID_OTA_DONE				0x03
 #define NID_MASS_DATA_DONE			0x04
+
+#define FACE_STATE_NOFACE								1
+#define FACE_STATE_TOOUP								2
+#define FACE_STATE_TOODOWN								3
+#define FACE_STATE_TOOLEFT								4
+#define FACE_STATE_TOORIGHT								5
+#define FACE_STATE_TOOFAR								6
+#define FACE_STATE_TOOCLOSE								7
+#define FACE_STATE_FACE_OCCLUSION						10
+#define FACE_STATE_EYE_CLOSE_STATUS_OPEN_EYE			12
+#define FACE_STATE_EYE_CLOSE_STATUS						13
+#define FACE_STATE_EYE_CLOSE_UNKNOW_STATUS				14
+
+#define ST_FACE_MODULE_STATUS_UNLOCK_OK					0xc8
+#define ST_FACE_MODULE_STATUS_UNLOCK_WITH_EYES_CLOSE	0xcc
 
 
 #if 1
@@ -96,7 +147,10 @@ void *uartThread(void *param);
 
 unsigned char checkSum(int n, const unsigned char *s);
 int makePacket(unsigned short header, unsigned char id, unsigned short length, unsigned char data[], unsigned char *buffer);
+
+void sendKidTimer(UINT nId);
 int uartKidVerify(int shutdown, int timeout);
+int uartKidPowerOn(void);
 
 #endif // 
 
