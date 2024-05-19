@@ -544,10 +544,61 @@ void *uartThread(void *param) {
 }
 
 static void onIpcYaml(int fd, int len, char *buffer) {
+	char reqYaml[1024 * 4] = {0};
 	char yaml[1024 * 4] = {0};
+    int r = 0;
+    char path[256] = {0};
+	FILE *f = 0;
+    char line[512] = {0};
+    char request[512] = {0};
+    char tmp[512] = {0};
 
-	memcpy(yaml, (void *)buffer, len);
-	printf("%s", yaml);
+	int gpio_num = 57;
+	int gpio_value = 1;
+	struct stat lbuf = {0};
+
+	int n = 0;
+	int list[CONCURRENT_CLIENT_NUMBER] = {0};
+
+	memcpy(reqYaml, (void *)buffer, len);
+	printf("%s", reqYaml);
+
+    while (0 == r)
+        srand(time(NULL)), r = rand();
+    sprintf(path, "/tmp/ipc-%08X.yaml", r);
+    f = fopen(path, "wb"), assert(0 != f);
+    fwrite(reqYaml, 1, len, f);
+    fclose(f), f = 0;
+
+	f = fopen(path, "r"), assert(0 != f);
+	fseek(f, 0, SEEK_SET);
+	fgets(line, sizeof(line), f);
+	fgets(request, sizeof(line), f);
+	if (0 == strncmp("gpio", request, 4)) {
+		fgets(line, sizeof(line), f);
+		sscanf(line, "  %d: %d", &gpio_num, &gpio_value);
+	}
+    fclose(f), f = 0;
+	unlink(path);
+
+	if (0 == strncmp("gpio", request, 4)) {
+		sprintf(path, "/sys/class/gpio/gpio%d/value", gpio_num);
+		if (0 == lstat(path, &lbuf)) {
+			f = fopen(path, "w"), assert(0 != f);
+			sprintf(line, "%d", gpio_value);
+			fclose(f), f = 0;
+
+			memset(yaml, 0, sizeof(yaml));
+			strcat(yaml, "---\n");
+			strcat(yaml, "gpio:\n");
+			sprintf(tmp, "  %d: %d\n", gpio_num, gpio_value), strcat(yaml, tmp);
+			sprintf(tmp, "\n\n"), strcat(yaml, tmp);
+			n = tcpsGetConnectionList(list);
+			if (n > 0)
+				ipcSendto(n, list, yaml, strlen(yaml));
+		}
+		return;
+	}
 
 	return;
 }
@@ -563,7 +614,7 @@ static void onIpcChar(int fd, char ch) {
 	offset = p - recv_packet;
 
 	if (offset > 0 && 0x0a == *p && 0x0a == *(p - 1)) {
-		onYaml(fd, offset + 1, recv_packet);
+		onIpcYaml(fd, offset + 1, recv_packet);
 		p = recv_packet;
 		memset(recv_packet, 0, sizeof(recv_packet));
 		return;
