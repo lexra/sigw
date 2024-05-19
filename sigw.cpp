@@ -75,7 +75,12 @@ static void onSIGUSR1 (int id, int len, char *msg) {
 	}
 	*/
 
-	printf("(%s %d) %s\n", __FILE__, __LINE__, msg);
+	//		n = tcpsGetConnectionList(list);
+	//		if (n > 0)
+	//			ipcSendto(n, list, yaml, strlen(yaml));
+
+
+	printf("(%s %d) msg=%s\n", __FILE__, __LINE__, msg);
 	n = tcpsGetConnectionList(list);
 	if (n > 0)
 		ipcSendto(n, list, msg, len);
@@ -208,7 +213,8 @@ int main(int argc, char *argv[] ) {
 		if (msg[0] == 'q' && msg[1] == 'u' && msg[2] == 'i' && msg[3] == 't')
 			break;
 		//printf("(%s %d) %s\n", __FILE__, __LINE__, msg);
-		onSIGUSR1 (r, l, msg);
+		//onSIGUSR1 (r, l, msg);
+		onSIGUSR1 (r, p - msg, msg);
 	}
 
 	if (tUart) {

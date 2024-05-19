@@ -123,9 +123,6 @@ static void processKidNote(int len, unsigned char *data) {
 			printf("%02x ", data[4 + i]);
 		}
 		printf("\n");
-
-///////////////////////////////////////////////////////////
-//
 		//setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
 		uartKidVerify(0, 0x02);
 		break;
@@ -244,9 +241,6 @@ static void processKidReply(int len, unsigned char *data) {
 		if (MR_REJECTED == result) {
 			assert(2 == length);
 			printf("KID_DEVICE_INFO: MR_REJECTED=%02x\n", data[5]);
-
-///////////////////////////////////////////////////////////
-//
 			//setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
 			uartKidVerify(0, 0x02);
 			break;
@@ -491,7 +485,8 @@ int getUartDescriptor(void) {
 }
 
 void *uartThread(void *param) {
-	struct termios term = {0}, save = {0};
+	struct termios save = {0};
+	struct termios tty = {0};
     int i, res, v, maxfd = 0;
     fd_set rset;
 	unsigned char line[1024 + 4] = {0};
@@ -501,15 +496,42 @@ void *uartThread(void *param) {
 	memcpy(&ttyfd, param, sizeof(int));
 
 	assert(-1 != ttyfd);
-	assert(tcgetattr(ttyfd, &term) >= 0);
+	assert(tcgetattr(ttyfd, &tty) >= 0);
 
-    memcpy((void *)&save, (void *)&term, sizeof(struct termios));
-    term.c_cflag |= B115200, term.c_cflag |= CLOCAL, term.c_cflag |= CREAD, term.c_cflag &= ~PARENB, term.c_cflag &= ~CSTOPB;
-    term.c_cflag &= ~CSIZE, term.c_cflag |= CS8, term.c_iflag = IGNPAR, term.c_cc[VMIN] = 1, term.c_cc[VTIME] = 0;
-    term.c_iflag = 0, term.c_oflag = 0, term.c_lflag = 0;
-    cfsetispeed(&term, B115200), cfsetospeed(&term, B115200);
+	memcpy((void *)&save, (void *)&tty, sizeof(struct termios));
 
-	tcsetattr(ttyfd, TCSANOW, &term);
+#if 1
+	tty.c_cflag |= B115200, tty.c_cflag |= CLOCAL, tty.c_cflag |= CREAD, tty.c_cflag &= ~PARENB, tty.c_cflag &= ~CSTOPB;
+	tty.c_cflag &= ~CSIZE, tty.c_cflag |= CS8, tty.c_iflag = IGNPAR, tty.c_cc[VMIN] = 1, tty.c_cc[VTIME] = 0;
+	tty.c_iflag = 0, tty.c_oflag = 0, tty.c_lflag = 0;
+	cfsetispeed(&tty, B115200), cfsetospeed(&tty, B115200);
+	tcsetattr(ttyfd, TCSANOW, &tty);
+#else
+    tty.c_cflag &= ~PARENB; // Clear parity bit, disabling parity (most common)
+    tty.c_cflag &= ~CSTOPB; // Clear stop field, only one stop bit used in communication (most common)
+    tty.c_cflag &= ~CSIZE; // Clear all bits that set the data size
+    tty.c_cflag |= CS8; // 8 bits per byte (most common)
+    tty.c_cflag &= ~CRTSCTS; // Disable RTS/CTS hardware flow control (most common)
+    tty.c_cflag |= CREAD | CLOCAL; // Turn on READ & ignore ctrl lines (CLOCAL = 1)
+
+    tty.c_lflag &= ~ICANON;
+    tty.c_lflag &= ~ECHO; // Disable echo
+    tty.c_lflag &= ~ECHOE; // Disable erasure
+    tty.c_lflag &= ~ECHONL; // Disable new-line echo
+    tty.c_lflag &= ~ISIG; // Disable interpretation of INTR, QUIT and SUSP
+    tty.c_iflag &= ~(IXON | IXOFF | IXANY); // Turn off s/w flow ctrl
+    tty.c_iflag &= ~(IGNBRK|BRKINT|PARMRK|ISTRIP|INLCR|IGNCR|ICRNL); // Disable any special handling of received bytes
+
+    tty.c_oflag &= ~OPOST; // Prevent special interpretation of output bytes (e.g. newline chars)
+    tty.c_oflag &= ~ONLCR; // Prevent conversion of newline to carriage return/line feed
+    tty.c_cc[VTIME] = 10;    // Wait for up to 1s (10 deciseconds), returning as soon as any data is received.
+    tty.c_cc[VMIN] = 0;
+
+    cfsetispeed(&tty, B115200);
+    cfsetospeed(&tty, B115200);
+	tcsetattr(ttyfd, TCSANOW, &tty);
+#endif
+
 	v = fcntl(ttyfd, F_GETFL, 0);
 	fcntl(ttyfd, F_SETFL, v | O_NONBLOCK);
 	tcflush(ttyfd, TCIFLUSH);
@@ -593,6 +615,7 @@ static void onIpcYaml(int fd, int len, char *buffer) {
 			strcat(yaml, "gpio:\n");
 			sprintf(tmp, "  %d: %d\n", gpio_num, gpio_value), strcat(yaml, tmp);
 			sprintf(tmp, "\n\n"), strcat(yaml, tmp);
+
 			n = tcpsGetConnectionList(list);
 			if (n > 0)
 				ipcSendto(n, list, yaml, strlen(yaml));
