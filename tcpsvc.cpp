@@ -147,16 +147,7 @@ void *tcpsThread(void *param) {
 
 			clilen = sizeof(cliaddr);
 			connfd = accept(listen_sd, (struct sockaddr *)&cliaddr, (socklen_t *)&clilen), assert(connfd >= 0);
-
-#if 1
 			assert(connfd >= 0);
-#else
-			if (connfd < 0) {
-				printf("(%s %d) connfd < 0\n", __FILE__, __LINE__);
-				goto NEXT_ISSET;
-			}
-#endif // 1
-
 			//printf("(%s %d) accept(%d)\n", __FILE__, __LINE__, connfd);
 			for (i = 0; i < CONCURRENT_CLIENT_NUMBER; i++) {
 				if (-1 != accept_sd[i])
@@ -186,15 +177,24 @@ NEXT_ISSET:
 
 				memcpy((void *)buffer, (void *)&connfd, sizeof(int));
 				len = read(connfd, buffer + sizeof(int), MAX_BUFFER_MUM - sizeof(int));
-#if 0
+#if 1
 				if (len < 0) {
-					if (EWOULDBLOCK == errno)
+					if (EWOULDBLOCK == errno) {
+						printf("(%s %d) EWOULDBLOCK\n", __FILE__, __LINE__);
 						continue;
-					if (EAGAIN == errno)
+					} else if (EAGAIN == errno) {
+						printf("(%s %d) EAGAIN\n", __FILE__, __LINE__);
 						continue;
+					} else {
+						//printf("(%s %d) accept(%d)\n", __FILE__, __LINE__, connfd);
+						printf("errno=%d\n", errno);
+						close(connfd);
+						accept_sd[i] = -1;
+						continue;
+					}
 				}
 #endif // 0
-				assert(len >= 0);
+				//assert(len >= 0);
 				if (0 == len) {
 					close(connfd);
 					accept_sd[i] = -1;
