@@ -133,11 +133,8 @@
 #define ST_FACE_MODULE_STATUS_UNLOCK_WITH_EYES_CLOSE	0xcc
 
 
-#if 1
-#define TTY_SERIAL                    "/dev/ttyUSB0"
-#else
-#define TTY_SERIAL                    "/dev/ttyS1"
-#endif
+#define TTY_SERIAL_0                    "/dev/ttyUSB0"
+#define TTY_SERIAL_1                    "/dev/ttyS1"
 
 
 void tellUartThreadExit(void);
@@ -151,6 +148,7 @@ int makePacket(unsigned short header, unsigned char id, unsigned short length, u
 void sendKidTimer(UINT nId);
 int uartKidVerify(int shutdown, int timeout);
 int uartKidPowerOn(void);
+int onIpcBuffer(int fd, int length, char *buffer);
 
 #endif // 
 

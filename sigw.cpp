@@ -51,7 +51,7 @@ static void onSIGUSR1 (int id, int len, char *msg) {
 	int res;
 	int i;
 	int n = 0;
-	int connfd[CONCURRENT_CLIENT_NUMBER];
+	int list[CONCURRENT_CLIENT_NUMBER] = {0};
 
 	/*if (msg[0] == 'N' && msg[1] == 'F' && msg[2] == 'C') {
 		printf("(%s %d) NFC\n", __FILE__, __LINE__);
@@ -74,7 +74,11 @@ static void onSIGUSR1 (int id, int len, char *msg) {
 		return;
 	}
 	*/
+
 	printf("(%s %d) %s\n", __FILE__, __LINE__, msg);
+	n = tcpsGetConnectionList(list);
+	if (n > 0)
+		ipcSendto(n, list, msg, len);
 	return;
 }
 
@@ -105,7 +109,7 @@ static int setPollTimer(int period) {
 	return res;
 }
 
-int main( int argc, char *argv[] ) {
+int main(int argc, char *argv[] ) {
     sigset_t nset, oset;
     struct timespec ts = {0};
     FILE *f;
@@ -120,11 +124,6 @@ int main( int argc, char *argv[] ) {
 	pthread_t tEvent = 0;
 	pthread_t tTcp = 0;
 
-//printf("HI_UINT16(PACKET_HEADER)=%02x\n", HI_UINT16(PACKET_HEADER));
-
-//HI_UINT16(PACKET_HEADER)
-
-
 ///////////////////////////////////////////////////////////
 	sigemptyset(&nset), sigaddset(&nset, SIGUSR1), sigaddset(&nset, SIGINT), sigaddset(&nset, SIGTERM), sigaddset(&nset, SIGALRM);
 	pthread_sigmask(SIG_BLOCK, &nset, &oset);
@@ -134,15 +133,16 @@ int main( int argc, char *argv[] ) {
 	res = initEventThread();
 	res = pthread_create(&tEvent, NULL, eventThread, (void *)&nset), assert(0 == res);
 	res = pthread_create(&tTcp, NULL, tcpsThread, (void *)&nset), assert(0 == res);
-	if (-1 != (ttyfd = open(TTY_SERIAL, O_RDWR | O_NOCTTY | O_NDELAY))) {
-		//printf("(%s %d) uartThread\n", __FILE__, __LINE__);
+	ttyfd = open(TTY_SERIAL_0, O_RDWR | O_NOCTTY | O_NDELAY);
+	if (-1 == ttyfd)
+		ttyfd = open(TTY_SERIAL_1, O_RDWR | O_NOCTTY | O_NDELAY);
+	if (-1 != ttyfd) {
+		printf("(%s %d) uartThread\n", __FILE__, __LINE__);
 		res = pthread_create(&tUart, NULL, uartThread, (void *)&ttyfd), assert(0 == res);
 	}
 
 ///////////////////////////////////////////////////////////
 	setPollTimer(32);
-
-	//setTimer(TIMER_ID_PERIOD, 1000, onPeriod);
 	setTimer(TIMER_KID_POWER_ON, 1000, sendKidTimer);
 
 	ts.tv_sec = 0, ts.tv_nsec = 1000000 * 300;
@@ -187,7 +187,7 @@ int main( int argc, char *argv[] ) {
 			continue;
 		}
 		r = info.si_value.sival_int;
-		sprintf(path, "/tmp/msg-%08X.txt", r);
+		sprintf(path, "/tmp/usr-%08X.yaml", r);
 		f = fopen(path, "rb");
 		if (0 == f) {
 			printf("(%s %d) `%s` NOT FOUND\n", __FILE__, __LINE__, path);

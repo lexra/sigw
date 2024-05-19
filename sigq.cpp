@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
 
     while (0 == r)
         srand(time(NULL)), r = rand();
-    sprintf(path, "/tmp/msg-%08X.txt", r);
+    sprintf(path, "/tmp/usr-%08X.yaml", r);
     f = fopen(path, "wb"), assert(0 != f);
 
     if (3 == argc)

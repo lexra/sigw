@@ -108,7 +108,7 @@ int uartKidPowerOn(void) {
 	return 1500;
 }
 
-static void processNote(int len, unsigned char *data) {
+static void processKidNote(int len, unsigned char *data) {
 	unsigned char rid = data[0];
 	unsigned char nid = data[3];
 	int length = len - 3;
@@ -220,11 +220,10 @@ void sendKidTimer(UINT nId) {
 		//uartKidVerify(0x01, 0x02);
 		return;
 	}
-
 	return;
 }
 
-static void processReply(int len, unsigned char *data) {
+static void processKidReply(int len, unsigned char *data) {
 	int n = 0;
 	int list[CONCURRENT_CLIENT_NUMBER] = {0};
 
@@ -296,21 +295,6 @@ static void processReply(int len, unsigned char *data) {
 			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
 			break;
 		}
-		if (MR_FAILED_TIME_OUT == result) {
-			printf("(%s %d) MR_FAILED_TIME_OUT\n", __FILE__, __LINE__);
-			memset(yaml, 0, sizeof(yaml));
-			strcat(yaml, "---\n");
-			strcat(yaml, "verify\n");
-			sprintf(tmp, "  id: -1\n"), strcat(yaml, tmp);
-			sprintf(tmp, "  name: undef\n"), strcat(yaml, tmp);
-			sprintf(tmp, "  result: MR_FAILED_TIME_OUT\n"), strcat(yaml, tmp);
-			sprintf(tmp, "\n\n"), strcat(yaml, tmp);
-			n = tcpsGetConnectionList(list);
-			if (n > 0)
-				ipcSendto(n, list, yaml, strlen(yaml));
-			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
-			break;
-		}
 		if (MR_FAILED_UNKNOWN_REASON == result) {
 			printf("(%s %d) MR_FAILED_UNKNOWN_REASON\n", __FILE__, __LINE__);
 			memset(yaml, 0, sizeof(yaml));
@@ -371,6 +355,21 @@ static void processReply(int len, unsigned char *data) {
 			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
 			break;
 		}
+		if (MR_FAILED_TIME_OUT == result) {
+			printf("(%s %d) MR_FAILED_TIME_OUT\n", __FILE__, __LINE__);
+			memset(yaml, 0, sizeof(yaml));
+			strcat(yaml, "---\n");
+			strcat(yaml, "verify\n");
+			sprintf(tmp, "  id: -1\n"), strcat(yaml, tmp);
+			sprintf(tmp, "  name: undef\n"), strcat(yaml, tmp);
+			sprintf(tmp, "  result: MR_FAILED_TIME_OUT\n"), strcat(yaml, tmp);
+			sprintf(tmp, "\n\n"), strcat(yaml, tmp);
+			n = tcpsGetConnectionList(list);
+			if (n > 0)
+				ipcSendto(n, list, yaml, strlen(yaml));
+			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
+			break;
+		}
 		user_id = BUILD_UINT16(data[6], data[5]);
 		for (i = 0; i < 32; i++)
 			user_name[i] = (char)data[7 + i];
@@ -383,8 +382,6 @@ static void processReply(int len, unsigned char *data) {
 			memcpy((void *)&lv_vals, (void *)&data[41], sizeof(lv_vals));
 			printf("lv_vals=%llu\n", lv_vals);
 		}
-///////////////////////////////////////////////////////////
-//
 		memset(yaml, 0, sizeof(yaml));
 		strcat(yaml, "---\n");
 		strcat(yaml, "verify\n");
@@ -410,14 +407,7 @@ static void processReply(int len, unsigned char *data) {
 	return;
 }
 
-/*
-[TX] POWER ON: Send done and Wait for reply ( TO: 1000ms) !!!
-[RX] Note: Module Ready!!
-Process Time: 425 (ms)
-[Reply Data] POWER ON: 
-*/
-
-static int processPacket(int len, unsigned char *message) {
+static int processKidPacket(int len, unsigned char *message) {
 	unsigned char rid;
 	int size;
 
@@ -426,13 +416,11 @@ static int processPacket(int len, unsigned char *message) {
 
 	switch (rid) {
 	case RID_REPLY:
-		//printf("RID_REPLY\n");
-		processReply(size + 3, &message[0]);
+		processKidReply(size + 3, &message[0]);
 		break;
 
 	case RID_NOTE:
-		//printf("RID_NOTE\n");
-		processNote(size + 3, &message[0]);
+		processKidNote(size + 3, &message[0]);
 		break;
 
 	case RID_IMAGE:
@@ -486,7 +474,7 @@ static void onUartChar(int fd, unsigned char ch) {
 
 	sum = checkSum(3 + size, &recv_packet[2]);
 	if (*p == sum) {
-		processPacket(3 + size, &recv_packet[2]);
+		processKidPacket(3 + size, &recv_packet[2]);
 	}
 	p = recv_packet;
 	size = 0;
@@ -554,3 +542,76 @@ void *uartThread(void *param) {
     close(ttyfd), ttyfd = -1;
 	return 0;
 }
+
+static void onIpcYaml(int fd, int len, char *buffer) {
+	char yaml[1024 * 4] = {0};
+
+	memcpy(yaml, (void *)buffer, len);
+	printf("%s", yaml);
+
+	return;
+}
+
+static void onIpcChar(int fd, char ch) {
+	static char recv_packet[1024 * 4] = {0};
+	static char *p = recv_packet;
+
+	int offset = 0;
+	unsigned char sum;
+
+	*p = ch;
+	offset = p - recv_packet;
+
+	if (offset > 0 && 0x0a == *p && 0x0a == *(p - 1)) {
+		onYaml(fd, offset + 1, recv_packet);
+		p = recv_packet;
+		memset(recv_packet, 0, sizeof(recv_packet));
+		return;
+	}
+	if (offset > 2 && 
+		0x0d == *(p - 1) && 0x0a == *(p - 0) 
+		&& 0x0d == *(p - 3) && 0x0a == *(p - 2)
+	) {
+		onIpcYaml(fd, offset + 1, recv_packet);
+		p = recv_packet;
+		memset(recv_packet, 0, sizeof(recv_packet));
+		return;
+	}
+	if (0 == offset && '-' != recv_packet[0]) {
+		p = recv_packet;
+		memset(recv_packet, 0, sizeof(recv_packet));
+		return;
+	}
+	if (1 == offset && '-' != recv_packet[0] && '-' != recv_packet[1]) {
+		p = recv_packet;
+		memset(recv_packet, 0, sizeof(recv_packet));
+		return;
+	}
+	if (2 == offset && '-' != recv_packet[0] && '-' != recv_packet[1] && '-' != recv_packet[2]) {
+		p = recv_packet;
+		memset(recv_packet, 0, sizeof(recv_packet));
+		return;
+	}
+	if (3 == offset && '-' != recv_packet[0] && '-' != recv_packet[1] && '-' != recv_packet[2] && 0x0a != recv_packet[3] && 0x0d != recv_packet[3]) {
+		p = recv_packet;
+		memset(recv_packet, 0, sizeof(recv_packet));
+		return;
+	}
+	p++;
+	return;
+}
+
+int onIpcBuffer(int fd, int length, char *buffer) {
+	int i = 0;
+
+//printf("(%s %d) onIpcBuffer(%d)=%d\n", __FILE__, __LINE__, fd, length);
+//printf("(%s %d) %s\n", __FILE__, __LINE__, buffer);
+//	for (i = 0; i < length; i++)
+//		printf("%02x ", buffer[i]);
+//	printf("\n");
+
+	for (i = 0; i < length; i++)
+		onIpcChar(fd, buffer[i]);
+	return length;
+}
+

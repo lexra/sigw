@@ -24,6 +24,7 @@
 
 #include "event.h"
 #include "tcpsvc.h"
+#include "uart.h"
 
 static int thread_running = 0;
 static int listen_sd = -1;
@@ -156,7 +157,7 @@ void *tcpsThread(void *param) {
 			}
 #endif // 1
 
-			printf("(%s %d) accept(%d)\n", __FILE__, __LINE__, connfd);
+			//printf("(%s %d) accept(%d)\n", __FILE__, __LINE__, connfd);
 			for (i = 0; i < CONCURRENT_CLIENT_NUMBER; i++) {
 				if (-1 != accept_sd[i])
 					continue;
@@ -170,8 +171,8 @@ void *tcpsThread(void *param) {
 			v = fcntl(connfd, F_GETFL, 0);
 			fcntl(connfd, F_SETFL, v | O_NONBLOCK);
 			accept_sd[index] = connfd;
-			goto NEXT_ISSET;
-			//continue;
+			//goto NEXT_ISSET;
+			continue;
 		}
 
 NEXT_ISSET:
@@ -184,7 +185,6 @@ NEXT_ISSET:
 				char buffer[MAX_BUFFER_MUM] = {0};
 
 				memcpy((void *)buffer, (void *)&connfd, sizeof(int));
-
 				len = read(connfd, buffer + sizeof(int), MAX_BUFFER_MUM - sizeof(int));
 #if 0
 				if (len < 0) {
@@ -200,7 +200,8 @@ NEXT_ISSET:
 					accept_sd[i] = -1;
 					continue;
 				}
-				sendEvent(MSG_TCP_RCV, len + sizeof(int), buffer, onEvent);
+				onIpcBuffer(connfd, len, buffer + sizeof(int));
+				//sendEvent(MSG_TCP_RCV, len + sizeof(int), buffer, onIpcEvent);
 			}
 		}
 	}
