@@ -100,6 +100,8 @@ int uartKidPowerOn(void) {
 
 	if (-1 == ttyfd)
 		return 0;
+
+printf("(%s %d) uartKidPowerOn()\n", __FILE__, __LINE__);
 	for (i = 0; i < 1500; i++) {
 		res = write(ttyfd, &zero, 1);
 		assert(1 == res);
@@ -123,8 +125,8 @@ static void processKidNote(int len, unsigned char *data) {
 			printf("%02x ", data[4 + i]);
 		}
 		printf("\n");
-		//setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
-		uartKidVerify(0, 0x02);
+		setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
+		//uartKidVerify(0, 0x02);
 		break;
 
 	case NID_UNKNOWN_ERROR:
@@ -241,8 +243,8 @@ static void processKidReply(int len, unsigned char *data) {
 		if (MR_REJECTED == result) {
 			assert(2 == length);
 			printf("KID_DEVICE_INFO: MR_REJECTED=%02x\n", data[5]);
-			//setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
-			uartKidVerify(0, 0x02);
+			setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
+			//uartKidVerify(0, 0x02);
 			break;
 		}
 		printf("KID_DEVICE_INFO(%02x): ", length);
@@ -500,7 +502,7 @@ void *uartThread(void *param) {
 
 	memcpy((void *)&save, (void *)&tty, sizeof(struct termios));
 
-#if 1
+#if 0
 	tty.c_cflag |= B115200, tty.c_cflag |= CLOCAL, tty.c_cflag |= CREAD, tty.c_cflag &= ~PARENB, tty.c_cflag &= ~CSTOPB;
 	tty.c_cflag &= ~CSIZE, tty.c_cflag |= CS8, tty.c_iflag = IGNPAR, tty.c_cc[VMIN] = 1, tty.c_cc[VTIME] = 0;
 	tty.c_iflag = 0, tty.c_oflag = 0, tty.c_lflag = 0;
@@ -534,6 +536,8 @@ void *uartThread(void *param) {
 
 	v = fcntl(ttyfd, F_GETFL, 0);
 	fcntl(ttyfd, F_SETFL, v | O_NONBLOCK);
+
+printf("(%s %d) tcflush\n", __FILE__, __LINE__);
 	tcflush(ttyfd, TCIFLUSH);
 
 	thread_running = 1;

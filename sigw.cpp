@@ -28,21 +28,6 @@
 #include "timer.h"
 
 ///////////////////////////////////////////////////////////
-static char verify[] = 
-	"\"VERIFY\": {\n"
-	"  \"status\": \"Ok\", \n"
-	"  \"id\": \"80\", \n"
-	"  \"name\": \"Jason\", \n"
-	"  \"note\": \"\" \n"
-	"}}\n";
-
-static char nfc[] = 
-	"{\"NFC\": {"
-	"  \"status\": \"Ok\", \n"
-	"  \"name\": \"Jason\", \n"
-	"  \"note\": \"\" \n"
-	"}}\n";
-
 static UINT interval = 10000;
 
 ///////////////////////////////////////////////////////////
@@ -148,7 +133,9 @@ int main(int argc, char *argv[] ) {
 
 ///////////////////////////////////////////////////////////
 	setPollTimer(32);
-	setTimer(TIMER_KID_POWER_ON, 1000, sendKidTimer);
+
+	//printf("(%s %d) TIMER_KID_POWER_ON\n", __FILE__, __LINE__);
+	setTimer(TIMER_KID_POWER_ON, 3000, sendKidTimer);
 
 	ts.tv_sec = 0, ts.tv_nsec = 1000000 * 300;
 	for(;;) {
