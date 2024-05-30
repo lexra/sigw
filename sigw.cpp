@@ -123,9 +123,7 @@ int main(int argc, char *argv[] ) {
 	res = initEventThread();
 	res = pthread_create(&tEvent, NULL, eventThread, (void *)&nset), assert(0 == res);
 	res = pthread_create(&tTcp, NULL, tcpsThread, (void *)&nset), assert(0 == res);
-	ttyfd = open(TTY_SERIAL_0, O_RDWR | O_NOCTTY | O_NDELAY);
-	if (-1 == ttyfd)
-		ttyfd = open(TTY_SERIAL_1, O_RDWR | O_NOCTTY | O_NDELAY);
+	ttyfd = open(TTY_SERIAL, O_RDWR | O_NOCTTY | O_NDELAY);
 	if (-1 != ttyfd) {
 		printf("(%s %d) uartThread\n", __FILE__, __LINE__);
 		res = pthread_create(&tUart, NULL, uartThread, (void *)&ttyfd), assert(0 == res);
@@ -135,7 +133,7 @@ int main(int argc, char *argv[] ) {
 	setPollTimer(32);
 
 	//printf("(%s %d) TIMER_KID_POWER_ON\n", __FILE__, __LINE__);
-	setTimer(TIMER_KID_POWER_ON, 3000, sendKidTimer);
+	setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
 
 	ts.tv_sec = 0, ts.tv_nsec = 1000000 * 300;
 	for(;;) {

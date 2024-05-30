@@ -82,6 +82,20 @@ int uartKidVerify(int shutdown, int timeout) {
 	if (-1 == ttyfd)
 		return 0;
 
+#if 0
+	buffer[0] = 0x9f;
+	buffer[1] = 0xdc;
+	buffer[2] = 0x11;
+	buffer[3] = 0x00;
+	buffer[4] = 0x02;
+	buffer[5] = 0x00;
+	buffer[6] = 0x0a;
+	buffer[7] = 0x19;
+	res = write(ttyfd, buffer, 8);
+
+//printf("(%s %d) uartKidVerify=%02x\n", __FILE__, __LINE__, len);
+	return res;
+#else
 	data[0] = (shutdown & 0xff);
 	data[1] = (timeout & 0xff);
 
@@ -90,6 +104,10 @@ int uartKidVerify(int shutdown, int timeout) {
 
 	res = write(ttyfd, buffer, len);
 	assert(res == len);
+
+	return 8;
+#endif
+
 	return 8;
 }
 
@@ -125,8 +143,8 @@ static void processKidNote(int len, unsigned char *data) {
 			printf("%02x ", data[4 + i]);
 		}
 		printf("\n");
-		setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
-		//uartKidVerify(0, 0x02);
+		//setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
+		uartKidVerify(0, 0x02);
 		break;
 
 	case NID_UNKNOWN_ERROR:
@@ -215,8 +233,7 @@ void sendKidTimer(UINT nId) {
 		return;
 	}
 	if (TIMER_KID_VERIFY == nId) {
-		uartKidVerify(0x00, 0x02);
-		//uartKidVerify(0x01, 0x02);
+		uartKidVerify(0x00, 0x0a);
 		return;
 	}
 	return;
@@ -274,7 +291,7 @@ static void processKidReply(int len, unsigned char *data) {
 			n = tcpsGetConnectionList(list);
 			if (n > 0)
 				ipcSendto(n, list, yaml, strlen(yaml));
-			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
+			setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
 			break;
 		}
 		if (MR_FAILED_INVALID_PARAM == result) {
@@ -288,7 +305,7 @@ static void processKidReply(int len, unsigned char *data) {
 			n = tcpsGetConnectionList(list);
 			if (n > 0)
 				ipcSendto(n, list, yaml, strlen(yaml));
-			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
+			setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
 			break;
 		}
 		if (MR_FAILED_UNKNOWN_REASON == result) {
@@ -303,7 +320,7 @@ static void processKidReply(int len, unsigned char *data) {
 			n = tcpsGetConnectionList(list);
 			if (n > 0)
 				ipcSendto(n, list, yaml, strlen(yaml));
-			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
+			setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
 			break;
 		}
 		if (MR_FAILED_UNKNOWN_USER == result) {
@@ -318,7 +335,7 @@ static void processKidReply(int len, unsigned char *data) {
 			n = tcpsGetConnectionList(list);
 			if (n > 0)
 				ipcSendto(n, list, yaml, strlen(yaml));
-			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
+			setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
 			break;
 		}
 		if (MR_FAILED_LIVENESS_CHECK == result) {
@@ -333,7 +350,7 @@ static void processKidReply(int len, unsigned char *data) {
 			n = tcpsGetConnectionList(list);
 			if (n > 0)
 				ipcSendto(n, list, yaml, strlen(yaml));
-			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
+			setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
 			break;
 		}
 		if (MR_FAILED_DEV_OPEN_FAIL == result) {
@@ -348,7 +365,7 @@ static void processKidReply(int len, unsigned char *data) {
 			n = tcpsGetConnectionList(list);
 			if (n > 0)
 				ipcSendto(n, list, yaml, strlen(yaml));
-			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
+			setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
 			break;
 		}
 		if (MR_FAILED_TIME_OUT == result) {
@@ -363,7 +380,7 @@ static void processKidReply(int len, unsigned char *data) {
 			n = tcpsGetConnectionList(list);
 			if (n > 0)
 				ipcSendto(n, list, yaml, strlen(yaml));
-			setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
+			setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
 			break;
 		}
 		user_id = BUILD_UINT16(data[6], data[5]);
@@ -392,8 +409,7 @@ static void processKidReply(int len, unsigned char *data) {
 		n = tcpsGetConnectionList(list);
 		if (n > 0)
 			ipcSendto(n, list, yaml, strlen(yaml));
-		setTimer(TIMER_KID_POWER_ON, 2000, sendKidTimer);
-		//setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
+		setTimer(TIMER_KID_VERIFY, 1000, sendKidTimer);
 		break;
 
 	default:
@@ -443,6 +459,7 @@ static void onUartChar(int fd, unsigned char ch) {
 	int offset = 0;
 	unsigned char sum;
 
+//printf("(%s %d) onUartChar\n", __FILE__, __LINE__);
 	*p = ch;
 	offset = p - recv_packet;
 
@@ -502,7 +519,7 @@ void *uartThread(void *param) {
 
 	memcpy((void *)&save, (void *)&tty, sizeof(struct termios));
 
-#if 0
+#if 1
 	tty.c_cflag |= B115200, tty.c_cflag |= CLOCAL, tty.c_cflag |= CREAD, tty.c_cflag &= ~PARENB, tty.c_cflag &= ~CSTOPB;
 	tty.c_cflag &= ~CSIZE, tty.c_cflag |= CS8, tty.c_iflag = IGNPAR, tty.c_cc[VMIN] = 1, tty.c_cc[VTIME] = 0;
 	tty.c_iflag = 0, tty.c_oflag = 0, tty.c_lflag = 0;
@@ -572,12 +589,12 @@ printf("(%s %d) tcflush\n", __FILE__, __LINE__);
 static void onIpcYaml(int fd, int len, char *buffer) {
 	char reqYaml[1024 * 4] = {0};
 	char yaml[1024 * 4] = {0};
-    int r = 0;
-    char path[256] = {0};
+	int r = 0;
+	char path[256] = {0};
 	FILE *f = 0;
-    char line[512] = {0};
-    char request[512] = {0};
-    char tmp[512] = {0};
+	char line[512] = {0};
+	char request[512] = {0};
+	char tmp[512] = {0};
 
 	int gpio_num = 57;
 	int gpio_value = 1;

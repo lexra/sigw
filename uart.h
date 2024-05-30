@@ -133,8 +133,9 @@
 #define ST_FACE_MODULE_STATUS_UNLOCK_WITH_EYES_CLOSE	0xcc
 
 
-#define TTY_SERIAL_0                    "/dev/ttyUSB0"
-#define TTY_SERIAL_1                    "/dev/ttyS1"
+#define TTY_SERIAL						"/dev/ttyS1"
+#define TTY_SERIAL_0					"/dev/ttyUSB0"
+#define TTY_SERIAL_1					"/dev/ttyS1"
 
 
 void tellUartThreadExit(void);
