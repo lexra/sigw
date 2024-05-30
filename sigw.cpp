@@ -105,7 +105,7 @@ int main(int argc, char *argv[] ) {
     FILE *f;
     int res = 0, signo = 0, r = 0;
     char path[1024] = {0};
-    char msg[1024] = {0};
+    char msg[1024 * 32] = {0};
     pid_t pid = -1;
 
 	int ttyfd = -1;
